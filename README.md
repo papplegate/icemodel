@@ -343,9 +343,9 @@ tuple(Artist.query().where("InvalidColumn", "value"))
 
 If your database uses different naming conventions (snake_case columns, CamelCase classes), rename the fields to match the actual column names.
 
-### Field Names as Enums
+### Field Names as Enums & Type Safety
 
-Each model with the `@field_names` decorator automatically generates a `Fields` enum that maps to field names. Use it to reference columns in queries:
+Each model with the `@field_names` decorator automatically generates a `Fields` enum that maps to field names. Use it for type-safe column references in queries:
 
 ```python
 from icemodel import field_names
@@ -353,103 +353,41 @@ from icemodel import field_names
 @field_names
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
-    ...
+    ArtistId: int = 0
+    Name: str | None = None
 
-# Access field names via enum members
+# Type-safe queries using enum members
 _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
 tuple(Artist.query().where(Artist.Fields.NAME, "AC/DC"))
 tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
 ```
 
-The enum provides:
+**Type safety benefits:**
+
 - **IDE autocomplete** — discover available fields as you type
+- **Compile-time checking** — mypy catches invalid field references before runtime
 - **Refactoring safety** — rename a field, rename the enum member, queries stay in sync
-- **Type hints** — document which fields are valid for a query
-
-### Schema Mapping at System Boundaries
-
-Field name mapping should happen at **system boundaries**, not in the ORM. This keeps the ORM simple and transparent while giving you full control over schema transformation where it actually belongs.
+- **Operator type safety** — directions and operators are validated by the type system
 
 ```python
-from icemodel import Model, ModelMeta, field_names
-
-# Database layer: direct correspondence, no mapping
-@field_names
-@dataclass(frozen=True)
-class Artist(Model):
-    _meta = ModelMeta(table="Artist", id_column="ArtistId")
-    ArtistId: int = 0
-    Name: str | None = None
-
-# API boundary: transform to external schema
-@app.get("/artists/{id}")
-def get_artist(id: int):
-    _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, id).limit(1))
-    db_artist = _results[0] if _results else None
-    if db_artist is None:
-        raise NotFound()
-    return {
-        "artist_id": db_artist.ArtistId,      # Map to API schema
-        "artist_name": db_artist.Name,
-        "url": f"/artists/{db_artist.ArtistId}"
-    }
-
-# Data import boundary: map legacy schema
-def import_legacy_data(legacy_dict):
-    artist = Artist(
-        ArtistId=legacy_dict["id"],           # Map from legacy field names
-        Name=legacy_dict["fullName"]
-    )
-    Artist.query().insert([artist])
+# Type-checked at compile time by mypy
+tuple(Artist.query().where(Artist.Fields.INVALID, "x"))  # ✗ AttributeError prevented
+tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))  # ✗ Invalid direction caught
+tuple(Artist.query().where(Artist.Fields.NAME, Op.INVALID, "x"))  # ✗ Invalid operator caught
 ```
 
-**Why at boundaries, not in the ORM?**
-- ORM stays simple and transparent
-- Schema mapping is explicit and visible in application code
-- Different parts of your system can have different external schemas
-- No hidden metadata or configuration
-- Easy to audit where transformations happen
+### Error Reporting
 
-### Graceful Database Errors
-
-Rather than using type-based validation to catch column name errors at runtime, icemodel takes a simpler approach: **let the database catch the error and report it clearly**.
-
-All SQL execution is wrapped to catch database errors (`sqlite3.OperationalError`) and display the full query alongside the error:
+For any issues that do make it to the database, all SQL execution is wrapped to provide clear error messages:
 
 ```python
-tuple(Artist.query().where("InvalidColumn", "value"))
+# Example: validation error
+corrupted = ValidatedModel(id=1, name="", email="invalid", age=0)
+ValidatedModel.query().insert([corrupted])
 
 # Raises:
-# sqlite3.OperationalError: no such column: InvalidColumn
-# 
-# Failed query:
-#   SQL: SELECT * FROM Artist WHERE InvalidColumn = ?
-#   Params: ['value']
-```
-
-**Why this beats type-based solutions:**
-
-Type-safe query APIs (like those using Field objects) require boilerplate:
-```python
-# Type-safe approach (high boilerplate)
-class Artist(Model):
-    ArtistId: int = 0
-    Name: str | None = None
-    
-    # Need helper methods or metaclass tricks to extract fields
-    _fields = {"ArtistId": ..., "Name": ...}
-
-# Then in queries:
-Artist.query().where(Artist.field("Name"), Op.LIKE, "The %")
-# Or with a field registry:
-Artist.query().where(Artist.fields.Name, Op.LIKE, "The %")
-```
-
-The string-based approach is simpler:
-```python
-# String-based approach (no boilerplate)
-Artist.query().where("Name", Op.LIKE, "The %")
+# ValueError: Validation failed for name: value must be non-empty
 ```
 
 **Trade-offs:**
@@ -525,14 +463,49 @@ Op.EQ, Op.NE, Op.LT, Op.LE, Op.GT, Op.GE, Op.LIKE, Op.NOT_LIKE, Op.IS, Op.IS_NOT
 
 All builder methods return the builder for chaining. Iteration (implicit via tuple() or explicit loops) fetches results. Collection-returning methods (`insert()`, `update()`) return immutable tuples.
 
-## Type Safety
+### Schema Mapping at System Boundaries
 
-All code passes:
-- **mypy strict** — full type checking, no `Any` escapes
-- **pylint 10.00/10** — code quality and style
-- **pytest** — 103 tests covering queries, CRUD, relations, transactions, schema generation, field validation
+Field name mapping should happen at **system boundaries**, not in the ORM. This keeps the ORM simple and transparent while giving you full control over schema transformation where it actually belongs.
 
-Use `@dataclass(eq=False, frozen=True)` with typed fields for IDE autocomplete and static type checking.
+```python
+from icemodel import Model, ModelMeta, field_names
+
+# Database layer: direct correspondence, no mapping
+@field_names
+@dataclass(frozen=True)
+class Artist(Model):
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
+    ArtistId: int = 0
+    Name: str | None = None
+
+# API boundary: transform to external schema
+@app.get("/artists/{id}")
+def get_artist(id: int):
+    _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, id).limit(1))
+    db_artist = _results[0] if _results else None
+    if db_artist is None:
+        raise NotFound()
+    return {
+        "artist_id": db_artist.ArtistId,      # Map to API schema
+        "artist_name": db_artist.Name,
+        "url": f"/artists/{db_artist.ArtistId}"
+    }
+
+# Data import boundary: map legacy schema
+def import_legacy_data(legacy_dict):
+    artist = Artist(
+        ArtistId=legacy_dict["id"],           # Map from legacy field names
+        Name=legacy_dict["fullName"]
+    )
+    Artist.query().insert([artist])
+```
+
+**Why at boundaries, not in the ORM?**
+- ORM stays simple and transparent
+- Schema mapping is explicit and visible in application code
+- Different parts of your system can have different external schemas
+- No hidden metadata or configuration
+- Easy to audit where transformations happen
 
 ## Schema Generation
 
@@ -587,31 +560,3 @@ Test database: [Chinook](https://github.com/lerocha/chinook-database) (music sto
 - **No N+1 prevention** — use `with_related()` for eager loading
 - **No automatic dirty tracking** — mutate via `dataclasses.replace()` + `patch()`
 - **No lazy properties** — relations are eagerly computed on access or pre-loaded with `with_related()`
-
-## Future Work
-
-### Multi-Database Support
-
-The architecture is designed to support additional databases (PostgreSQL, MySQL) without major rewrites. To add a new backend:
-
-1. **Abstract the connection layer** — Create a `_backends/` module with dialect-specific code for:
-   - Connection initialization and row factory setup
-   - Parameter binding (SQLite `?`, PostgreSQL `$1/$2`, MySQL `?`)
-   - Result row hydration (different drivers return rows differently)
-
-2. **Dialect-aware query building** — Modify `_query_builder.py` to:
-   - Track which database is in use
-   - Render SQL with correct parameter placeholders
-   - Handle dialect-specific features (e.g., PostgreSQL's `RETURNING` clause for INSERT)
-
-3. **Optional driver dependencies** — Add to `pyproject.toml`:
-   ```toml
-   [project.optional-dependencies]
-   postgres = ["psycopg>=3.0"]
-   mysql = ["pymysql>=1.0"]
-   ```
-   Users install: `pip install icemodel[postgres]` or `pip install icemodel[mysql]`
-
-4. **Shared test suite** — Use the same tests across all backends via parameterized fixtures.
-
-The core model, relation, and query builder logic remains database-agnostic. Only the connection, SQL rendering, and row hydration need backend-specific code.
