@@ -30,10 +30,12 @@ testpaths = ["tests"]
 
 [tool.mypy]
 strict = true
-files = ["icemodel"]
+files = ["icemodel", "tests"]
+plugins = ["icemodel.mypy_plugin"]
 
 [tool.pylint.main]
 source-roots = ["."]
+extension-pkg-allow-list = ["mypy"]
 
 [tool.pylint."messages control"]
 disable = [

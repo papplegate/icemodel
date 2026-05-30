@@ -69,7 +69,9 @@ class TestWhereIn:
 class TestOrderBy:
     def test_asc(self, chinook: sqlite3.Connection) -> None:
         names = [
-            a.Name for a in tuple(Artist.query().order_by(Artist.Fields.NAME).limit(5))
+            a.Name
+            for a in tuple(Artist.query().order_by(Artist.Fields.NAME).limit(5))
+            if a.Name is not None
         ]
         assert names == sorted(names)
 
@@ -233,6 +235,11 @@ class TestToSql:
         sql, params = (
             Artist.query().select(Artist.Fields.ARTISTID, Artist.Fields.NAME).to_sql()
         )
+        assert sql == "SELECT ArtistId, Name FROM Artist"
+        assert params == []
+
+    def test_to_sql_with_select_all(self, chinook: sqlite3.Connection) -> None:
+        sql, params = Artist.query().select(*Artist.Fields).to_sql()
         assert sql == "SELECT ArtistId, Name FROM Artist"
         assert params == []
 

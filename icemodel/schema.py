@@ -104,7 +104,7 @@ def schema_for(model_class: type[Model]) -> str:  # pylint: disable=too-many-loc
     return f"CREATE TABLE {table_name} (\n{fields_str}\n) STRICT;"
 
 
-def schema_for_all(models: list[type[Model]] | None = None) -> list[str]:
+def schema_for_all(models: list[Any] | None = None) -> list[str]:
     """Generate CREATE TABLE statements for all models.
 
     Args:
