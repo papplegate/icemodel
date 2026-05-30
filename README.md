@@ -319,7 +319,7 @@ _meta = ModelMeta(table="TableName", id_column="PrimaryKeyColumn")
 
 ### Field Names as Enums & Type Safety
 
-The `@add_field_types` decorator generates two typed class attributes on each model.
+The `@add_field_types` decorator generates a `Fields` enum on each model at runtime. The mypy plugin (see below) additionally synthesizes a `Partial` TypedDict and gives `Fields` proper member-level type checking.
 
 **`Fields` enum** — type-safe column references for queries:
 
@@ -337,32 +337,53 @@ _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
 tuple(Artist.query().where(Artist.Fields.NAME, "AC/DC"))
 tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
+
+# Unpack all fields into select()
+tuple(Artist.query().select(*Artist.Fields))
 ```
 
-**`Partial` TypedDict** — typed partial row for `patch()`:
+**`Partial` TypedDict** — typed partial row for `patch()` (plugin-synthesized, annotation-only):
 
 ```python
 # All fields are optional; include only the ones you want to change
 data: Artist.Partial = {"Name": "New Name"}
 Artist.query().where(Artist.Fields.ARTISTID, 1).patch(data)
 
-# Type checker catches invalid field names and wrong value types
-bad: Artist.Partial = {"InvalidField": 1}  # ✗ Unknown key caught by mypy
+# mypy catches invalid field names and wrong value types
+bad: Artist.Partial = {"InvalidField": 1}   # ✗ Unknown key
+bad2: Artist.Partial = {"Name": 99999}       # ✗ Wrong value type
 ```
 
-**Type safety benefits:**
+**Type safety benefits (with mypy plugin configured):**
 
-- **IDE autocomplete** — discover available fields as you type
-- **Compile-time checking** — mypy catches invalid field references before runtime
-- **Refactoring safety** — rename a field, rename the enum member, queries stay in sync
-- **Operator type safety** — directions and operators are validated by the type system
+- **`Fields` member checking** — `Artist.Fields.TYPO` is a mypy error
+- **`Partial` key and value checking** — wrong keys and wrong value types caught at compile time
+- **Operator and direction safety** — `Operator` and `Direction` enums are validated
+- **IDE autocomplete** — discover available fields, operators, and directions as you type
 
 ```python
-# Type-checked at compile time by mypy
-tuple(Artist.query().where(Artist.Fields.INVALID, "x"))           # ✗ AttributeError prevented
-tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction caught
-tuple(Artist.query().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator caught
+# All caught at compile time by mypy
+tuple(Artist.query().where(Artist.Fields.INVALID, "x"))           # ✗ No such member
+tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction
+tuple(Artist.query().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator
 ```
+
+### Mypy Plugin
+
+icemodel ships a mypy plugin (`plugin/mypy_plugin.py`) that synthesizes typed `Fields` and `Partial` attributes for each model class. Without it, mypy accepts any attribute access on `Fields` and `Partial` is unknown.
+
+Add to `pyproject.toml` or `mypy.ini`:
+
+```toml
+[tool.mypy]
+plugins = ["plugin.mypy_plugin"]
+```
+
+The plugin provides:
+- A synthetic `Fields` enum subtype with one member per model field — invalid members are caught at type-check time
+- A `Partial` TypedDict (total=False) — wrong keys and incompatible value types are caught when building patch data
+
+`Partial` is annotation-only: it exists as a type for mypy but has no runtime presence. Use it to annotate patch data dicts; passing those dicts to `patch()` works normally at runtime.
 
 ### Error Reporting
 
@@ -539,7 +560,9 @@ python -m icemodel.schema
 
 ## Dependencies
 
-**None.** Uses only Python stdlib: `sqlite3`, `dataclasses`, `typing`.
+**Runtime: none.** Uses only Python stdlib: `sqlite3`, `dataclasses`, `typing`.
+
+**Mypy plugin:** requires `mypy` (dev dependency). The plugin lives in `plugin/mypy_plugin.py` and is separate from the runtime library.
 
 ## Testing
 
@@ -555,7 +578,7 @@ uv run mypy
 
 Lint:
 ```bash
-uv run pylint src/icemodel
+uv run pylint icemodel plugin
 ```
 
 Test database: [Chinook](https://github.com/lerocha/chinook-database) (music store sample DB).
