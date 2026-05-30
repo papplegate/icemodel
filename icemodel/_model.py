@@ -2,7 +2,7 @@ import dataclasses
 import sqlite3
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar, Generator, TypedDict, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generator, TypeVar
 
 from ._connection import (
     get_connection,
@@ -38,12 +38,6 @@ def add_field_types(cls: type[T]) -> type[T]:
     """
     field_dict = {f.name.upper(): f.name for f in dataclasses.fields(cls)}
     cls.Fields = Enum(f"{cls.__name__}Fields", field_dict)  # type: ignore[attr-defined,misc]
-
-    partial_hints: dict[str, Any] = {f.name: f.type for f in dataclasses.fields(cls)}
-    cls.Partial = TypedDict(  # type: ignore[attr-defined,misc]
-        f"{cls.__name__}Partial", partial_hints, total=False
-    )
-
     return cls
 
 
