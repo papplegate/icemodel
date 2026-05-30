@@ -30,8 +30,8 @@ testpaths = ["tests"]
 
 [tool.mypy]
 strict = true
-files = ["icemodel", "tests"]
-plugins = ["icemodel.mypy_plugin"]
+files = ["icemodel", "tests", "plugin"]
+plugins = ["plugin.mypy_plugin"]
 
 [tool.pylint.main]
 source-roots = ["."]
