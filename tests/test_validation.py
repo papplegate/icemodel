@@ -8,8 +8,8 @@ from typing import ClassVar
 
 import pytest
 
-from icemodel import Model, ModelMeta, field_names
-from icemodel._query_builder import Op
+from icemodel import Model, ModelMeta, add_field_types
+from icemodel._query_builder import Operator
 
 
 def is_positive(value: int) -> bool:
@@ -27,7 +27,7 @@ def is_non_empty(value: str) -> bool:
     return len(value) > 0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class ValidatedModel(Model):
     _meta = ModelMeta(table="ValidatedModel", id_column="id")
@@ -113,7 +113,7 @@ class TestValidation:
         rows_affected = (
             ValidatedModel.query()
             .where(ValidatedModel.Fields.ID, 1)
-            .patch({ValidatedModel.Fields.NAME: "Alice Updated"})
+            .patch({"name": "Alice Updated"})
         )
         assert rows_affected == 1
         _results = tuple(
@@ -130,7 +130,7 @@ class TestValidation:
         )
         with pytest.raises(ValueError, match="Validation failed for name"):
             ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).patch(
-                {ValidatedModel.Fields.NAME: ""}
+                {"name": ""}
             )
 
     def test_nullable_field_skips_validation(
@@ -138,7 +138,7 @@ class TestValidation:
     ) -> None:
         """None values should skip validation."""
 
-        @field_names
+        @add_field_types
         @dataclass(eq=False, frozen=True)
         class NullableModel(Model):
             _meta = ModelMeta(table="NullableModel", id_column="id")
@@ -219,7 +219,7 @@ class TestValidation:
 
         from icemodel import HasMany
 
-        @field_names
+        @add_field_types
         @dataclass(eq=False, frozen=True)
         class Parent(Model):
             _meta = ModelMeta(table="Parent", id_column="id")
@@ -231,7 +231,7 @@ class TestValidation:
             id: int = 0
             name: str = field(default="", metadata={"validator": is_non_empty})
 
-        @field_names
+        @add_field_types
         @dataclass(eq=False, frozen=True)
         class Child(Model):
             _meta = ModelMeta(table="Child", id_column="id")

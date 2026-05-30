@@ -11,9 +11,9 @@ Models are frozen dataclasses with a `_meta` ModelMeta instance for table metada
 ```python
 from dataclasses import dataclass
 from typing import ClassVar
-from icemodel import Model, ModelMeta, HasMany, BelongsTo, field_names
+from icemodel import Model, ModelMeta, HasMany, BelongsTo, add_field_types
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
     _meta = ModelMeta(table="Artist", id_column="ArtistId")
@@ -25,7 +25,7 @@ class Artist(Model):
     ArtistId: int = 0
     Name: str | None = None
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Album(Model):
     _meta = ModelMeta(table="Album", id_column="AlbumId")
@@ -55,7 +55,7 @@ Model.bind(conn)
 ### Query
 
 ```python
-from icemodel._query_builder import Op
+from icemodel._query_builder import Operator, Direction
 
 # Fetch all (iterate over results)
 artists = tuple(Artist.query())
@@ -63,7 +63,7 @@ artists = tuple(Artist.query())
 # Filter, order, limit
 top_artists = tuple(
     Artist.query()
-    .where(Artist.Fields.NAME, Op.LIKE, "The %")
+    .where(Artist.Fields.NAME, Operator.LIKE, "The %")
     .order_by(Artist.Fields.NAME)
     .limit(10)
 )
@@ -129,10 +129,15 @@ if len(_results) > 0:
 
 **Patch (partial fields with where clause):**
 ```python
-# Update specific fields of filtered records (keys must be Fields enum members)
+# Update specific fields of filtered records
 rows_affected = Album.query().where(Album.Fields.ARTISTID, 1).patch(
-    {Album.Fields.TITLE: "New Title"}
+    {"Title": "New Title"}
 )
+
+# Use Model.Partial for type-checked patch data
+def rename_album(album_id: int, new_title: str) -> int:
+    data: Album.Partial = {"Title": new_title}
+    return Album.query().where(Album.Fields.ALBUMID, album_id).patch(data)
 ```
 
 **Delete:**
@@ -179,7 +184,7 @@ Define field validators using dataclass field metadata for semantic constraints 
 
 ```python
 from dataclasses import dataclass, field
-from icemodel import Model, ModelMeta, field_names
+from icemodel import Model, ModelMeta, add_field_types
 
 def is_email(value: str) -> bool:
     return "@" in value
@@ -187,7 +192,7 @@ def is_email(value: str) -> bool:
 def is_positive(value: int) -> bool:
     return value > 0
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class User(Model):
     _meta = ModelMeta(table="User", id_column="UserId")
@@ -314,12 +319,14 @@ _meta = ModelMeta(table="TableName", id_column="PrimaryKeyColumn")
 
 ### Field Names as Enums & Type Safety
 
-Each model with the `@field_names` decorator automatically generates a `Fields` enum that maps to field names. Use it for type-safe column references in queries:
+The `@add_field_types` decorator generates two typed class attributes on each model.
+
+**`Fields` enum** — type-safe column references for queries:
 
 ```python
-from icemodel import field_names
+from icemodel import add_field_types
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
     ArtistId: int = 0
@@ -332,6 +339,17 @@ tuple(Artist.query().where(Artist.Fields.NAME, "AC/DC"))
 tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
 ```
 
+**`Partial` TypedDict** — typed partial row for `patch()`:
+
+```python
+# All fields are optional; include only the ones you want to change
+data: Artist.Partial = {"Name": "New Name"}
+Artist.query().where(Artist.Fields.ARTISTID, 1).patch(data)
+
+# Type checker catches invalid field names and wrong value types
+bad: Artist.Partial = {"InvalidField": 1}  # ✗ Unknown key caught by mypy
+```
+
 **Type safety benefits:**
 
 - **IDE autocomplete** — discover available fields as you type
@@ -341,9 +359,9 @@ tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
 
 ```python
 # Type-checked at compile time by mypy
-tuple(Artist.query().where(Artist.Fields.INVALID, "x"))  # ✗ AttributeError prevented
-tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))  # ✗ Invalid direction caught
-tuple(Artist.query().where(Artist.Fields.NAME, Op.INVALID, "x"))  # ✗ Invalid operator caught
+tuple(Artist.query().where(Artist.Fields.INVALID, "x"))           # ✗ AttributeError prevented
+tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction caught
+tuple(Artist.query().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator caught
 ```
 
 ### Error Reporting
@@ -388,20 +406,20 @@ class Album(Model):
 The `QueryBuilder` provides a fluent API for building type-safe queries. Column references are specified via the `Fields` enum:
 
 ```python
-from icemodel._query_builder import Op
+from icemodel._query_builder import Operator, Direction
 
-Artist.query().where(Artist.Fields.NAME, Op.LIKE, "The %")
+Artist.query().where(Artist.Fields.NAME, Operator.LIKE, "The %")
 Album.query().where_in(Album.Fields.ARTISTID, [1, 2, 3])
-Track.query().order_by(Track.Fields.NAME, "DESC")
+Track.query().order_by(Track.Fields.NAME, Direction.DESCENDING)
 ```
 
 **Query Methods (return QueryBuilder for chaining):**
 
 - `where(field, value)` — equality filter  
-  `where(field, Op.EQ, value)` — explicit equality
-- `where(field, op, value)` — filter with `Op` enum operator
+  `where(field, Operator.EQUAL, value)` — explicit equality
+- `where(field, op, value)` — filter with `Operator` enum
 - `where_in(field, [values])` — IN clause
-- `order_by(field, "ASC"|"DESC")` — sort
+- `order_by(field, Direction.ASCENDING|Direction.DESCENDING)` — sort
 - `limit(n)` — limit results
 - `offset(n)` — skip results
 - `select(*fields)` — select specific columns
@@ -417,9 +435,16 @@ Track.query().order_by(Track.Fields.NAME, "DESC")
 - `delete()` — delete matching rows
 - `to_sql()` — inspect generated SQL (returns tuple of sql string and params)
 
-**Op Enum** — Comparison operators:
+**`Operator` enum** — comparison operators:
 ```python
-Op.EQ, Op.NE, Op.LT, Op.LE, Op.GT, Op.GE, Op.LIKE, Op.NOT_LIKE, Op.IS, Op.IS_NOT
+Operator.EQUAL, Operator.NOT_EQUAL, Operator.LESS_THAN, Operator.LESS_THAN_OR_EQUAL,
+Operator.GREATER_THAN, Operator.GREATER_THAN_OR_EQUAL,
+Operator.LIKE, Operator.NOT_LIKE, Operator.IS, Operator.IS_NOT
+```
+
+**`Direction` enum** — sort direction:
+```python
+Direction.ASCENDING, Direction.DESCENDING
 ```
 
 All builder methods return the builder for chaining. Iteration (implicit via tuple() or explicit loops) fetches results. Collection-returning methods (`insert()`, `update()`) return immutable tuples.
@@ -429,9 +454,9 @@ All builder methods return the builder for chaining. Iteration (implicit via tup
 **Design Decision:** Dataclass field names must exactly match database column names. There is no mapping or translation layer.
 
 ```python
-from icemodel import Model, ModelMeta, field_names
+from icemodel import Model, ModelMeta, add_field_types
 
-@field_names
+@add_field_types
 @dataclass(frozen=True)
 class Artist(Model):
     _meta = ModelMeta(table="Artist", id_column="ArtistId")
@@ -450,10 +475,10 @@ This ensures:
 Field name mapping should happen at **system boundaries**, not in the ORM. This keeps the ORM simple and transparent while giving you full control over schema transformation where it actually belongs.
 
 ```python
-from icemodel import Model, ModelMeta, field_names
+from icemodel import Model, ModelMeta, add_field_types
 
 # Database layer: direct correspondence, no mapping
-@field_names
+@add_field_types
 @dataclass(frozen=True)
 class Artist(Model):
     _meta = ModelMeta(table="Artist", id_column="ArtistId")

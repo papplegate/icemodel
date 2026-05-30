@@ -41,4 +41,7 @@ disable = [
     "missing-class-docstring",
     "missing-function-docstring",
     "too-few-public-methods",
+    "import-outside-toplevel",
+    "attribute-defined-outside-init",
+    "too-many-locals",
 ]

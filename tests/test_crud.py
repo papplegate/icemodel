@@ -8,15 +8,15 @@ from typing import ClassVar
 
 import pytest
 
-from icemodel import HasMany, ManyToMany, Model, ModelMeta, field_names
-from icemodel._query_builder import Op
+from icemodel import HasMany, ManyToMany, Model, ModelMeta, add_field_types
+from icemodel._query_builder import Operator
 
 # ------------------------------------------------------------------ #
 # Local models for the writable schema                                #
 # ------------------------------------------------------------------ #
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Book(Model):
     _meta = ModelMeta(table="Book", id_column="BookId")
@@ -37,7 +37,7 @@ class Book(Model):
     Price: float = 0.0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Tag(Model):
     _meta = ModelMeta(table="Tag", id_column="TagId")
@@ -165,8 +165,8 @@ class TestPatch:
         )
         rows_affected = (
             Book.query()
-            .where(Book.Fields.YEAR, Op.GT, 2005)
-            .patch({Book.Fields.AUTHOR: "Unknown"})
+            .where(Book.Fields.YEAR, Operator.GREATER_THAN, 2005)
+            .patch({"Author": "Unknown"})
         )
         assert rows_affected == 1
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 2).limit(1))
@@ -179,7 +179,7 @@ class TestPatch:
         rows_affected = (
             Book.query()
             .where(Book.Fields.BOOKID, 1)
-            .patch({Book.Fields.TITLE: "Children of Dune", Book.Fields.PRICE: 12.50})
+            .patch({"Title": "Children of Dune", "Price": 12.50})
         )
         assert rows_affected == 1
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
@@ -196,7 +196,7 @@ class TestPatch:
             ]
         )
         with pytest.raises(ValueError, match="WHERE clause"):
-            Book.query().patch({Book.Fields.AUTHOR: "Unknown"})
+            Book.query().patch({"Author": "Unknown"})
 
     def test_patch_empty_raises(self, writable_db: sqlite3.Connection) -> None:
         with pytest.raises(ValueError, match="patch()"):
@@ -220,7 +220,7 @@ class TestDelete:
     def test_delete_returns_rowcount(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="A", Price=1.0)])
         Book.query().insert([Book(BookId=2, Title="B", Price=2.0)])
-        n = Book.query().where(Book.Fields.BOOKID, Op.GT, 0).delete()
+        n = Book.query().where(Book.Fields.BOOKID, Operator.GREATER_THAN, 0).delete()
         assert n == 2
 
 
@@ -236,7 +236,10 @@ class TestCount:
     def test_count_with_where(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="A", Year=2000, Price=1.0)])
         Book.query().insert([Book(BookId=2, Title="B", Year=2010, Price=1.0)])
-        assert Book.query().where(Book.Fields.YEAR, Op.GT, 2005).count() == 1
+        assert (
+            Book.query().where(Book.Fields.YEAR, Operator.GREATER_THAN, 2005).count()
+            == 1
+        )
 
 
 class TestTransactions:
@@ -391,9 +394,9 @@ class TestRoundTrip:
 
         Book.query().where(Book.Fields.BOOKID, 1).patch(
             {
-                Book.Fields.TITLE: "Patched Title",
-                Book.Fields.YEAR: 2020,
-                Book.Fields.PRICE: 19.99,
+                "Title": "Patched Title",
+                "Year": 2020,
+                "Price": 19.99,
             }
         )
 

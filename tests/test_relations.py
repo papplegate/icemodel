@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from icemodel._query_builder import Op
+from icemodel._query_builder import Operator
 from tests.models import Album, Artist, Customer, Employee, Invoice, Playlist, Track
 
 

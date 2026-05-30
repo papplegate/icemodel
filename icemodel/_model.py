@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 import dataclasses
 import sqlite3
 from contextlib import contextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, Any, ClassVar, Generator, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generator, TypedDict, TypeVar
 
 from ._connection import (
     get_connection,
@@ -16,7 +14,7 @@ from ._relations import Relation
 if TYPE_CHECKING:
     from ._query_builder import QueryBuilder
 
-_model_registry: dict[str, type[Model]] = {}
+_model_registry: "dict[str, type[Model]]" = {}
 
 T = TypeVar("T", bound="Model")
 
@@ -29,17 +27,23 @@ class ModelMeta:
     id_column: str = "id"
 
 
-def field_names(cls: type[T]) -> type[T]:
+def add_field_types(cls: type[T]) -> type[T]:
     """Decorator to create a Fields enum for a model class.
 
     Apply after @dataclass decorator:
-        @field_names
+        @add_field_types
         @dataclass(eq=False, frozen=True)
         class MyModel(Model):
             ...
     """
     field_dict = {f.name.upper(): f.name for f in dataclasses.fields(cls)}
     cls.Fields = Enum(f"{cls.__name__}Fields", field_dict)  # type: ignore[attr-defined,misc]
+
+    partial_hints: dict[str, Any] = {f.name: f.type for f in dataclasses.fields(cls)}
+    cls.Partial = TypedDict(  # type: ignore[attr-defined,misc]
+        f"{cls.__name__}Partial", partial_hints, total=False
+    )
+
     return cls
 
 
@@ -104,7 +108,7 @@ class Model(metaclass=_ModelMeta):
         set_connection(conn)
 
     @classmethod
-    def query(cls: type[T]) -> QueryBuilder[T]:
+    def query(cls: type[T]) -> "QueryBuilder[T]":
         from ._query_builder import (
             QueryBuilder as _QB,
         )  # pylint: disable=import-outside-toplevel

@@ -6,7 +6,7 @@ import sqlite3
 
 import pytest
 
-from icemodel._query_builder import Op
+from icemodel._query_builder import Direction, Operator
 from tests.models import Album, Artist, Employee, Genre, Invoice, Track
 
 
@@ -33,12 +33,16 @@ class TestWhere:
         assert results[0].ArtistId == 1
 
     def test_operator_gt(self, chinook: sqlite3.Connection) -> None:
-        results = tuple(Invoice.query().where(Invoice.Fields.TOTAL, Op.GT, 20))
+        results = tuple(
+            Invoice.query().where(Invoice.Fields.TOTAL, Operator.GREATER_THAN, 20)
+        )
         assert all(inv.Total > 20 for inv in results)
         assert len(results) > 0
 
     def test_operator_like(self, chinook: sqlite3.Connection) -> None:
-        results = tuple(Artist.query().where(Artist.Fields.NAME, Op.LIKE, "The %"))
+        results = tuple(
+            Artist.query().where(Artist.Fields.NAME, Operator.LIKE, "The %")
+        )
         assert all(a.Name is not None and a.Name.startswith("The ") for a in results)
         assert len(results) > 0
 
@@ -47,7 +51,7 @@ class TestWhere:
         results = tuple(
             Album.query()
             .where(Album.Fields.ARTISTID, 1)
-            .where(Album.Fields.ALBUMID, Op.GT, 1)
+            .where(Album.Fields.ALBUMID, Operator.GREATER_THAN, 1)
         )
         assert all(a.ArtistId == 1 and a.AlbumId > 1 for a in results)
 
@@ -73,7 +77,9 @@ class TestOrderBy:
         totals = [
             inv.Total
             for inv in tuple(
-                Invoice.query().order_by(Invoice.Fields.TOTAL, "DESC").limit(5)
+                Invoice.query()
+                .order_by(Invoice.Fields.TOTAL, Direction.DESCENDING)
+                .limit(5)
             )
         ]
         assert totals == sorted(totals, reverse=True)
@@ -157,13 +163,17 @@ class TestToSql:
         assert params == [1]
 
     def test_to_sql_with_operator(self, chinook: sqlite3.Connection) -> None:
-        sql, params = Invoice.query().where(Invoice.Fields.TOTAL, Op.GT, 20.0).to_sql()
+        sql, params = (
+            Invoice.query()
+            .where(Invoice.Fields.TOTAL, Operator.GREATER_THAN, 20.0)
+            .to_sql()
+        )
         assert sql == "SELECT * FROM Invoice WHERE Total > ?"
         assert params == [20.0]
 
     def test_to_sql_with_like(self, chinook: sqlite3.Connection) -> None:
         sql, params = (
-            Artist.query().where(Artist.Fields.NAME, Op.LIKE, "The %").to_sql()
+            Artist.query().where(Artist.Fields.NAME, Operator.LIKE, "The %").to_sql()
         )
         assert sql == "SELECT * FROM Artist WHERE Name LIKE ?"
         assert params == ["The %"]
@@ -172,7 +182,7 @@ class TestToSql:
         sql, params = (
             Album.query()
             .where(Album.Fields.ARTISTID, 1)
-            .where(Album.Fields.ALBUMID, Op.GT, 1)
+            .where(Album.Fields.ALBUMID, Operator.GREATER_THAN, 1)
             .to_sql()
         )
         assert sql == "SELECT * FROM Album WHERE ArtistId = ? AND AlbumId > ?"
@@ -191,7 +201,11 @@ class TestToSql:
         assert params == []
 
     def test_to_sql_with_order_by_desc(self, chinook: sqlite3.Connection) -> None:
-        sql, params = Invoice.query().order_by(Invoice.Fields.TOTAL, "DESC").to_sql()
+        sql, params = (
+            Invoice.query()
+            .order_by(Invoice.Fields.TOTAL, Direction.DESCENDING)
+            .to_sql()
+        )
         assert sql == "SELECT * FROM Invoice ORDER BY Total DESC"
         assert params == []
 
@@ -199,7 +213,7 @@ class TestToSql:
         sql, params = (
             Track.query()
             .order_by(Track.Fields.ALBUMID)
-            .order_by(Artist.Fields.NAME, "DESC")
+            .order_by(Artist.Fields.NAME, Direction.DESCENDING)
             .to_sql()
         )
         assert sql == "SELECT * FROM Track ORDER BY AlbumId ASC, Name DESC"
@@ -226,7 +240,7 @@ class TestToSql:
         sql, params = (
             Artist.query()
             .select(Artist.Fields.ARTISTID, Artist.Fields.NAME)
-            .where(Artist.Fields.NAME, Op.LIKE, "The %")
+            .where(Artist.Fields.NAME, Operator.LIKE, "The %")
             .order_by(Artist.Fields.NAME)
             .limit(5)
             .to_sql()

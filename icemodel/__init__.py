@@ -1,11 +1,11 @@
-from ._model import Model, ModelMeta, field_names
+from ._model import Model, ModelMeta, add_field_types
 from ._relations import BelongsTo, HasMany, HasOne, ManyToMany
 from .schema import schema_for, schema_for_all
 
 __all__ = [
     "Model",
     "ModelMeta",
-    "field_names",
+    "add_field_types",
     "HasMany",
     "BelongsTo",
     "HasOne",

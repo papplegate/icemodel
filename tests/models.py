@@ -1,6 +1,6 @@
 """Chinook database model definitions used across the test suite.
 
-All models use ``@field_names`` then ``@dataclass(eq=False, frozen=True)`` so that
+All models use ``@add_field_types`` then ``@dataclass(eq=False, frozen=True)`` so that
 Model's primary-key equality is preserved rather than the field-wise equality that
 @dataclass would generate.
 """
@@ -11,10 +11,10 @@ import datetime
 from dataclasses import dataclass
 from typing import ClassVar
 
-from icemodel import BelongsTo, HasMany, ManyToMany, Model, ModelMeta, field_names
+from icemodel import BelongsTo, HasMany, ManyToMany, Model, ModelMeta, add_field_types
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
     _meta = ModelMeta(table="Artist", id_column="ArtistId")
@@ -27,7 +27,7 @@ class Artist(Model):
     Name: str | None = None
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Album(Model):
     _meta = ModelMeta(table="Album", id_column="AlbumId")
@@ -44,7 +44,7 @@ class Album(Model):
     ArtistId: int = 0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Track(Model):
     _meta = ModelMeta(table="Track", id_column="TrackId")
@@ -72,7 +72,7 @@ class Track(Model):
     UnitPrice: float = 0.0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Playlist(Model):
     _meta = ModelMeta(table="Playlist", id_column="PlaylistId")
@@ -90,7 +90,7 @@ class Playlist(Model):
     Name: str | None = None
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Customer(Model):
     _meta = ModelMeta(table="Customer", id_column="CustomerId")
@@ -114,7 +114,7 @@ class Customer(Model):
     SupportRepId: int | None = None
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Invoice(Model):
     _meta = ModelMeta(table="Invoice", id_column="InvoiceId")
@@ -137,7 +137,7 @@ class Invoice(Model):
     Total: float = 0.0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class InvoiceLine(Model):
     _meta = ModelMeta(table="InvoiceLine", id_column="InvoiceLineId")
@@ -153,7 +153,7 @@ class InvoiceLine(Model):
     Quantity: int = 0
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Employee(Model):
     _meta = ModelMeta(table="Employee", id_column="EmployeeId")
@@ -182,7 +182,7 @@ class Employee(Model):
     Email: str | None = None
 
 
-@field_names
+@add_field_types
 @dataclass(eq=False, frozen=True)
 class Genre(Model):
     _meta = ModelMeta(table="Genre", id_column="GenreId")
