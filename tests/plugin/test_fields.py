@@ -41,6 +41,13 @@ q = Book.query().where(Book.Fields.TITLE, "Dune")
 """)
         assert code == 0, out
 
+    def test_fields_iterable(self, check: Callable[[str], tuple[str, int]]) -> None:
+        # Fields must be iterable so *Book.Fields can be unpacked into select().
+        out, code = check(MODEL_PREAMBLE + """
+q = Book.query().select(*Book.Fields)
+""")
+        assert code == 0, out
+
 
 class TestFieldsRejects:
     def test_nonexistent_member_caught(

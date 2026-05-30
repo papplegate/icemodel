@@ -51,6 +51,11 @@ def _synthesize_fields(ctx: ClassDefContext, field_items: dict[str, Type]) -> No
     fields_info.is_enum = True
     fields_cls_def.info = fields_info
 
+    enum_meta = ctx.api.named_type_or_none("enum.EnumMeta")
+    if enum_meta is not None:
+        fields_info.declared_metaclass = enum_meta
+        fields_info.metaclass_type = enum_meta
+
     fields_instance = Instance(fields_info, [])
     for field_name in field_items:
         member = Var(field_name.upper(), fields_instance)
