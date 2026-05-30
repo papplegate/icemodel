@@ -72,9 +72,7 @@ def validate_model(model_instance: Any) -> None:
 
         # Call validator; if it returns False, raise ValueError
         if not validator(value):
-            raise ValueError(
-                f"Validation failed for {field.name}={value!r}"
-            )
+            raise ValueError(f"Validation failed for {field.name}={value!r}")
 
 
 def validate_fields(model_class: type[Any], data: dict[str, Any]) -> None:
@@ -103,9 +101,7 @@ def validate_fields(model_class: type[Any], data: dict[str, Any]) -> None:
 
         # Call validator; if it returns False, raise ValueError
         if not validator(value):
-            raise ValueError(
-                f"Validation failed for {field_name}={value!r}"
-            )
+            raise ValueError(f"Validation failed for {field_name}={value!r}")
 
 
 def from_row(model_class: type[Any], row: Any) -> Any:

@@ -24,6 +24,7 @@ T = TypeVar("T", bound="Model")
 @dataclasses.dataclass(frozen=True)
 class ModelMeta:
     """Metadata configuration for a model: table name and primary key column."""
+
     table: str
     id_column: str = "id"
 
@@ -57,7 +58,9 @@ class _ModelMeta(type):
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls.__name__ == "Model":
-            raise TypeError("Model cannot be instantiated directly. Subclass it instead.")
+            raise TypeError(
+                "Model cannot be instantiated directly. Subclass it instead."
+            )
         return super().__call__(*args, **kwargs)
 
 
@@ -102,10 +105,11 @@ class Model(metaclass=_ModelMeta):
 
     @classmethod
     def query(cls: type[T]) -> QueryBuilder[T]:
-        from ._query_builder import QueryBuilder as _QB  # pylint: disable=import-outside-toplevel
+        from ._query_builder import (
+            QueryBuilder as _QB,
+        )  # pylint: disable=import-outside-toplevel
 
         return _QB(cls, cls._meta.table, get_connection())
-
 
     @classmethod
     @contextmanager

@@ -16,7 +16,9 @@ def get_connection() -> sqlite3.Connection:
             return conn
         raise RuntimeError("No database connection. Call Model.bind(conn) first.")
     except KeyError as exc:
-        raise RuntimeError("No database connection. Call Model.bind(conn) first.") from exc
+        raise RuntimeError(
+            "No database connection. Call Model.bind(conn) first."
+        ) from exc
 
 
 def set_transaction_context(value: bool) -> None:

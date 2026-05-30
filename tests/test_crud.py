@@ -11,7 +11,6 @@ import pytest
 from icemodel import HasMany, ManyToMany, Model, ModelMeta, field_names
 from icemodel._query_builder import Op
 
-
 # ------------------------------------------------------------------ #
 # Local models for the writable schema                                #
 # ------------------------------------------------------------------ #
@@ -43,9 +42,7 @@ class Book(Model):
 class Tag(Model):
     _meta = ModelMeta(table="Tag", id_column="TagId")
 
-    books: ClassVar[HasMany] = HasMany(
-        "Book", foreign_key="BookId", local_key="TagId"
-    )
+    books: ClassVar[HasMany] = HasMany("Book", foreign_key="BookId", local_key="TagId")
 
     TagId: int = 0
     Label: str = ""
@@ -58,7 +55,9 @@ class Tag(Model):
 
 class TestInsert:
     def test_insert_returns_models(self, writable_db: sqlite3.Connection) -> None:
-        book = Book(BookId=1, Title="Dune", Author="Frank Herbert", Year=1965, Price=9.99)
+        book = Book(
+            BookId=1, Title="Dune", Author="Frank Herbert", Year=1965, Price=9.99
+        )
         results = Book.query().insert([book])
         assert isinstance(results, tuple)
         assert len(results) == 1
@@ -97,6 +96,7 @@ class TestInsert:
 class TestUpdate:
     def test_update_single_instance(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
+
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
         assert len(_results) > 0
@@ -109,6 +109,7 @@ class TestUpdate:
 
     def test_update_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
+
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
         assert len(_results) > 0
@@ -121,10 +122,13 @@ class TestUpdate:
 
     def test_update_multiple_instances(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
-        Book.query().insert([
-            Book(BookId=1, Title="A", Price=1.0),
-            Book(BookId=2, Title="B", Price=2.0),
-        ])
+
+        Book.query().insert(
+            [
+                Book(BookId=1, Title="A", Price=1.0),
+                Book(BookId=2, Title="B", Price=2.0),
+            ]
+        )
         _results1 = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
         assert len(_results1) > 0
         book1 = _results1[0]
@@ -153,11 +157,17 @@ class TestUpdate:
 
 class TestPatch:
     def test_patch_updates_filtered_rows(self, writable_db: sqlite3.Connection) -> None:
-        Book.query().insert([
-            Book(BookId=1, Title="A", Year=2000, Price=1.0),
-            Book(BookId=2, Title="B", Year=2010, Price=2.0),
-        ])
-        rows_affected = Book.query().where(Book.Fields.YEAR, Op.GT, 2005).patch({"Author": "Unknown"})
+        Book.query().insert(
+            [
+                Book(BookId=1, Title="A", Year=2000, Price=1.0),
+                Book(BookId=2, Title="B", Year=2010, Price=2.0),
+            ]
+        )
+        rows_affected = (
+            Book.query()
+            .where(Book.Fields.YEAR, Op.GT, 2005)
+            .patch({Book.Fields.AUTHOR: "Unknown"})
+        )
         assert rows_affected == 1
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 2).limit(1))
         assert len(_results) > 0
@@ -166,10 +176,11 @@ class TestPatch:
 
     def test_patch_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
-        rows_affected = Book.query().where(Book.Fields.BOOKID, 1).patch({
-            "Title": "Children of Dune",
-            "Price": 12.50
-        })
+        rows_affected = (
+            Book.query()
+            .where(Book.Fields.BOOKID, 1)
+            .patch({Book.Fields.TITLE: "Children of Dune", Book.Fields.PRICE: 12.50})
+        )
         assert rows_affected == 1
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
         assert len(_results) > 0
@@ -178,12 +189,14 @@ class TestPatch:
         assert book.Price == pytest.approx(12.50)
 
     def test_patch_without_where_raises(self, writable_db: sqlite3.Connection) -> None:
-        Book.query().insert([
-            Book(BookId=1, Title="A", Price=1.0),
-            Book(BookId=2, Title="B", Price=2.0),
-        ])
+        Book.query().insert(
+            [
+                Book(BookId=1, Title="A", Price=1.0),
+                Book(BookId=2, Title="B", Price=2.0),
+            ]
+        )
         with pytest.raises(ValueError, match="WHERE clause"):
-            Book.query().patch({"Author": "Unknown"})
+            Book.query().patch({Book.Fields.AUTHOR: "Unknown"})
 
     def test_patch_empty_raises(self, writable_db: sqlite3.Connection) -> None:
         with pytest.raises(ValueError, match="patch()"):
@@ -227,7 +240,9 @@ class TestCount:
 
 
 class TestTransactions:
-    def test_transaction_commits_on_success(self, writable_db: sqlite3.Connection) -> None:
+    def test_transaction_commits_on_success(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         with Book.transaction():
             Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         # Should be persisted after context exits
@@ -237,7 +252,9 @@ class TestTransactions:
         book = _results[0]
         assert book.Title == "Dune"
 
-    def test_transaction_rolls_back_on_exception(self, writable_db: sqlite3.Connection) -> None:
+    def test_transaction_rolls_back_on_exception(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         try:
             with Book.transaction():
                 Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
@@ -247,7 +264,9 @@ class TestTransactions:
         # Should be rolled back
         assert Book.query().count() == 0
 
-    def test_transaction_multiple_inserts(self, writable_db: sqlite3.Connection) -> None:
+    def test_transaction_multiple_inserts(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         with Book.transaction():
             Book.query().insert([Book(BookId=1, Title="Book 1", Price=1.0)])
             Book.query().insert([Book(BookId=2, Title="Book 2", Price=2.0)])
@@ -255,7 +274,9 @@ class TestTransactions:
         assert Book.query().count() == 2
         assert Tag.query().count() == 1
 
-    def test_transaction_partial_rollback(self, writable_db: sqlite3.Connection) -> None:
+    def test_transaction_partial_rollback(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         Book.query().insert([Book(BookId=1, Title="Existing", Price=5.0)])
         try:
             with Book.transaction():
@@ -273,7 +294,9 @@ class TestTransactions:
 
 
 class TestFieldsEnum:
-    def test_fields_enum_usable_in_queries(self, writable_db: sqlite3.Connection) -> None:
+    def test_fields_enum_usable_in_queries(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         # Can use enum members to reference field names in queries
         results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
@@ -319,7 +342,9 @@ class TestRoundTrip:
 
     def test_insert_and_fetch_with_nulls(self, writable_db: sqlite3.Connection) -> None:
         """Verify nullable fields store and retrieve None correctly."""
-        original = Book(BookId=99, Title="Standalone", Author=None, Year=None, Price=5.0)
+        original = Book(
+            BookId=99, Title="Standalone", Author=None, Year=None, Price=5.0
+        )
         Book.query().insert([original])
 
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 99).limit(1))
@@ -360,13 +385,17 @@ class TestRoundTrip:
 
     def test_patch_and_fetch_all_fields(self, writable_db: sqlite3.Connection) -> None:
         """Verify patch preserves all field types correctly."""
-        Book.query().insert([Book(BookId=1, Title="Original", Author="Original Author", Price=10.0)])
+        Book.query().insert(
+            [Book(BookId=1, Title="Original", Author="Original Author", Price=10.0)]
+        )
 
-        Book.query().where(Book.Fields.BOOKID, 1).patch({
-            "Title": "Patched Title",
-            "Year": 2020,
-            "Price": 19.99,
-        })
+        Book.query().where(Book.Fields.BOOKID, 1).patch(
+            {
+                Book.Fields.TITLE: "Patched Title",
+                Book.Fields.YEAR: 2020,
+                Book.Fields.PRICE: 19.99,
+            }
+        )
 
         _results = tuple(Book.query().where(Book.Fields.BOOKID, 1).limit(1))
         assert len(_results) > 0
@@ -384,7 +413,9 @@ class TestModelInstantiation:
         with pytest.raises(TypeError, match="cannot be instantiated directly"):
             Model()
 
-    def test_can_instantiate_model_subclass(self, writable_db: sqlite3.Connection) -> None:
+    def test_can_instantiate_model_subclass(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         """Model subclasses can be instantiated."""
         book = Book(BookId=1, Title="Test", Price=9.99)
         assert book.BookId == 1

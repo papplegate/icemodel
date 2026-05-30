@@ -43,7 +43,9 @@ class TestSchemaForAll:
         assert len(statements) == 3
         assert all("CREATE TABLE" in s for s in statements)
 
-    def test_generated_schema_is_valid_sql(self, writable_db: sqlite3.Connection) -> None:
+    def test_generated_schema_is_valid_sql(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         """Verify generated schema can be executed."""
         from dataclasses import dataclass
         from typing import ClassVar
@@ -83,9 +85,7 @@ class TestSchemaForAll:
         from icemodel._model import _model_registry
 
         chinook_models = [
-            _model_registry[name]
-            for name in actual_tables
-            if name in _model_registry
+            _model_registry[name] for name in actual_tables if name in _model_registry
         ]
 
         generated = schema_for_all(chinook_models)

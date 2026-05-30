@@ -80,7 +80,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        _results = tuple(
+            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+        )
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, name="Alice Updated")
@@ -94,7 +96,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        _results = tuple(
+            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+        )
         assert len(_results) > 0
         original = _results[0]
         invalid = replace(original, name="")
@@ -106,11 +110,15 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        rows_affected = ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).patch(
-            {"name": "Alice Updated"}
+        rows_affected = (
+            ValidatedModel.query()
+            .where(ValidatedModel.Fields.ID, 1)
+            .patch({ValidatedModel.Fields.NAME: "Alice Updated"})
         )
         assert rows_affected == 1
-        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        _results = tuple(
+            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.name == "Alice Updated"
@@ -121,7 +129,9 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         with pytest.raises(ValueError, match="Validation failed for name"):
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).patch({"name": ""})
+            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).patch(
+                {ValidatedModel.Fields.NAME: ""}
+            )
 
     def test_nullable_field_skips_validation(
         self, writable_db: sqlite3.Connection
@@ -134,9 +144,7 @@ class TestValidation:
             _meta = ModelMeta(table="NullableModel", id_column="id")
 
             id: int = 0
-            email: str | None = field(
-                default=None, metadata={"validator": is_email}
-            )
+            email: str | None = field(default=None, metadata={"validator": is_email})
 
         # Insert with None email should succeed (no validation)
         model = NullableModel(id=1, email=None)
@@ -158,7 +166,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        _results = tuple(
+            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.name == "Alice"
@@ -169,12 +179,16 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         # Corrupt the data by directly updating the database
-        writable_db.execute("UPDATE ValidatedModel SET email = ? WHERE id = 1", ("invalid",))
+        writable_db.execute(
+            "UPDATE ValidatedModel SET email = ? WHERE id = 1", ("invalid",)
+        )
         writable_db.commit()
 
         # Attempting to read should fail validation
         with pytest.raises(ValueError, match="Validation failed for email"):
-            _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+            _results = tuple(
+                ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+            )
             assert len(_results) > 0
             result = _results[0]
 
@@ -182,10 +196,12 @@ class TestValidation:
         self, writable_db: sqlite3.Connection
     ) -> None:
         """Reading multiple rows where one is corrupted should raise on the bad row."""
-        ValidatedModel.query().insert([
-            ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30),
-            ValidatedModel(id=2, name="Bob", email="bob@example.com", age=25),
-        ])
+        ValidatedModel.query().insert(
+            [
+                ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30),
+                ValidatedModel(id=2, name="Bob", email="bob@example.com", age=25),
+            ]
+        )
         # Corrupt one row
         writable_db.execute("UPDATE ValidatedModel SET name = ? WHERE id = 2", ("",))
         writable_db.commit()

@@ -129,8 +129,10 @@ if len(_results) > 0:
 
 **Patch (partial fields with where clause):**
 ```python
-# Update specific fields of filtered records
-rows_affected = Artist.query().where(Artist.Fields.COUNTRY, "UK").patch({"Country": "GB"})
+# Update specific fields of filtered records (keys must be Fields enum members)
+rows_affected = Album.query().where(Album.Fields.ARTISTID, 1).patch(
+    {Album.Fields.TITLE: "New Title"}
+)
 ```
 
 **Delete:**

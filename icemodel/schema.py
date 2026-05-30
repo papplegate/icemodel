@@ -24,7 +24,9 @@ def _python_to_sqlite_type(python_type: Any) -> str:
         # It's a generic like Union, Optional, etc.
         args = get_args(python_type)
         # Filter out NoneType to get the actual type
-        non_none_args = [arg for arg in args if arg is not none_type]  # pylint: disable=unidiomatic-typecheck
+        non_none_args = [
+            arg for arg in args if arg is not none_type
+        ]  # pylint: disable=unidiomatic-typecheck
         if non_none_args:
             return _python_to_sqlite_type(non_none_args[0])
 
@@ -93,7 +95,9 @@ def schema_for(model_class: type[Model]) -> str:  # pylint: disable=too-many-loc
             fk_col = relation.foreign_key
             related_model_name = relation._related  # pylint: disable=protected-access
             owner_key = relation.owner_key
-            fk_spec = f"  FOREIGN KEY ({fk_col}) REFERENCES {related_model_name}({owner_key})"
+            fk_spec = (
+                f"  FOREIGN KEY ({fk_col}) REFERENCES {related_model_name}({owner_key})"
+            )
             field_specs.append(fk_spec)
 
     fields_str = ",\n".join(field_specs)
@@ -139,5 +143,8 @@ if __name__ == "__main__":
             print(stmt)
             print()
     else:
-        print("No models found. Make sure to import your model definitions.", file=sys.stderr)
+        print(
+            "No models found. Make sure to import your model definitions.",
+            file=sys.stderr,
+        )
         sys.exit(1)

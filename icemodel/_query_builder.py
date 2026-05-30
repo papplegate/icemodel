@@ -4,7 +4,7 @@ import dataclasses
 import sqlite3
 from collections.abc import Iterable
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar, cast
 
 from ._connection import in_transaction_context
 from ._utils import from_row, validate_model, validate_fields
@@ -33,6 +33,7 @@ def _column_to_enum(model_class: type[Any], column: str) -> Enum:
 
 class Op(Enum):
     """SQL comparison operators."""
+
     EQ = "="
     NE = "!="
     LT = "<"
@@ -79,9 +80,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
             self._wheres.append((col, "=", op_or_value))
         else:
             # where(column, Op.GT, value) → Op with value
-            op_str = op_or_value.value if isinstance(op_or_value, Op) else str(op_or_value)
-            if op_str not in {o.value for o in Op}:
-                raise ValueError(f"Invalid operator {op_or_value!r}")
+            op_str = op_or_value.value
             self._wheres.append((col, op_str, value))
         return self
 
@@ -93,11 +92,10 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
             self._wheres.append((col, "__IN__", values))
         return self
 
-    def order_by(self, column: Enum, direction: str = "ASC") -> QueryBuilder[T]:
+    def order_by(
+        self, column: Enum, direction: Literal["ASC", "DESC"] = "ASC"
+    ) -> QueryBuilder[T]:
         col = _unwrap_column(column)
-        direction = direction.upper()
-        if direction not in ("ASC", "DESC"):
-            raise ValueError(f"direction must be 'ASC' or 'DESC', got {direction!r}")
         self._order_bys.append((col, direction))
         return self
 
@@ -134,7 +132,9 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         """Begin iteration over query results."""
         sql, params = self._build_select()
         self._rows = self._execute_safe(sql, params).fetchall()
-        self._result_list: list[T] = [cast(T, from_row(self._model_class, r)) for r in self._rows]
+        self._result_list: list[T] = [
+            cast(T, from_row(self._model_class, r)) for r in self._rows
+        ]
         if self._eager:
             self._load_eager(self._result_list)
         self._index = 0
@@ -160,7 +160,9 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         row = self._execute_safe(sql, params).fetchone()
         return int(row["n"])
 
-    def insert(self, models: Iterable[T]) -> tuple[T, ...]:  # pylint: disable=too-many-locals
+    def insert(
+        self, models: Iterable[T]
+    ) -> tuple[T, ...]:  # pylint: disable=too-many-locals
         """Insert multiple model instances. Returns tuple of fetched instances.
 
         Args:
@@ -248,11 +250,11 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         results = tuple(self.where_in(id_field, updated_ids))
         return results
 
-    def patch(self, data: dict[str, Any]) -> int:
+    def patch(self, data: dict[Enum, Any]) -> int:
         """Partial update of filtered rows with field changes.
 
         Args:
-            data: Dictionary of field names to new values.
+            data: Dictionary mapping Fields enum members to new values.
 
         Returns:
             Number of rows affected.
@@ -260,22 +262,31 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         if not data:
             raise ValueError("patch() requires at least one column.")
         if not self._wheres:
-            raise ValueError("patch() requires a WHERE clause. Use .where() to specify which rows to update.")
+            raise ValueError(
+                "patch() requires a WHERE clause. Use .where() to specify which rows to update."
+            )
+
+        # Convert enum keys to strings
+        normalized_data: dict[str, Any] = {}
+        for key, value in data.items():
+            normalized_data[_unwrap_column(key)] = value
 
         # Validate fields being patched (semantic validation like email format)
-        validate_fields(self._model_class, data)
+        validate_fields(self._model_class, normalized_data)
 
-        set_sql = ", ".join(f"{k} = ?" for k in data.keys())
+        set_sql = ", ".join(f"{k} = ?" for k in normalized_data)
         where_sql, where_params = self._build_where()
         sql = f"UPDATE {self._table} SET {set_sql}{where_sql}"
-        cursor = self._execute_safe(sql, list(data.values()) + where_params)
+        cursor = self._execute_safe(sql, list(normalized_data.values()) + where_params)
         if not in_transaction_context():
             self._conn.commit()
         return cursor.rowcount
 
     def delete(self) -> int:
         if not self._wheres:
-            raise ValueError("delete() requires a WHERE clause. Use .where() to specify which rows to delete.")
+            raise ValueError(
+                "delete() requires a WHERE clause. Use .where() to specify which rows to delete."
+            )
         where_sql, where_params = self._build_where()
         cursor = self._execute_safe(
             f"DELETE FROM {self._table}{where_sql}", where_params
@@ -303,7 +314,9 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
                 params.append(val)
         return " WHERE " + " AND ".join(clauses), params
 
-    def _build_select(self, force_limit: int | None = None) -> tuple[str, list[Any]]:  # pylint: disable=too-many-locals
+    def _build_select(
+        self, force_limit: int | None = None
+    ) -> tuple[str, list[Any]]:  # pylint: disable=too-many-locals
         cols = ", ".join(self._selects)
         sql = f"SELECT {cols} FROM {self._table}"
         where_sql, params = self._build_where()

@@ -1,6 +1,9 @@
 """Pytest fixtures for the icemodel test suite.
 
-``chinook`` is session-scoped (loaded once, read-only).
+``chinook`` is session-scoped (loaded once, read-only). Uses the Chinook sample
+database (https://github.com/lerocha/chinook-database) by Luis Rocha, licensed
+under the MIT License.
+
 ``writable_db`` is function-scoped (fresh in-memory DB per test, for CRUD tests).
 """
 

@@ -35,7 +35,9 @@ class TestHasManyLazy:
 
 
 class TestHasManyEager:
-    def test_eager_loads_albums_for_all_artists(self, chinook: sqlite3.Connection) -> None:
+    def test_eager_loads_albums_for_all_artists(
+        self, chinook: sqlite3.Connection
+    ) -> None:
         artists = tuple(Artist.query().with_related("albums").limit(10))
         # Every artist should have the _rel_albums key populated (even if empty list)
         for artist in artists:
@@ -43,7 +45,11 @@ class TestHasManyEager:
             assert all(isinstance(a, Album) for a in artist.albums)
 
     def test_eager_albums_correct_fk(self, chinook: sqlite3.Connection) -> None:
-        artists = tuple(Artist.query().with_related("albums").where_in(Artist.Fields.ARTISTID, [1, 4]))
+        artists = tuple(
+            Artist.query()
+            .with_related("albums")
+            .where_in(Artist.Fields.ARTISTID, [1, 4])
+        )
         by_id = {a.ArtistId: a for a in artists}
         for album in by_id[1].albums:
             assert album.ArtistId == 1
@@ -95,7 +101,9 @@ class TestSelfReferentialRelation:
         assert isinstance(manager, Employee)
         assert manager.EmployeeId == emp.ReportsTo
 
-    def test_top_level_employee_has_no_manager(self, chinook: sqlite3.Connection) -> None:
+    def test_top_level_employee_has_no_manager(
+        self, chinook: sqlite3.Connection
+    ) -> None:
         _results = tuple(Employee.query().where(Employee.Fields.EMPLOYEEID, 1).limit(1))
         assert len(_results) > 0
         emp = _results[0]

@@ -70,7 +70,9 @@ class HasMany(Relation):
         if cached is not _UNLOADED:
             return cached
         related_cls = _resolve_model(self._related)
-        from ._connection import get_connection  # pylint: disable=import-outside-toplevel
+        from ._connection import (
+            get_connection,
+        )  # pylint: disable=import-outside-toplevel
 
         conn = get_connection()
         local_val = obj.__dict__[self.local_key]
@@ -120,7 +122,9 @@ class BelongsTo(Relation):
         if cached is not _UNLOADED:
             return cached
         related_cls = _resolve_model(self._related)
-        from ._connection import get_connection  # pylint: disable=import-outside-toplevel
+        from ._connection import (
+            get_connection,
+        )  # pylint: disable=import-outside-toplevel
 
         conn = get_connection()
         fk_val = obj.__dict__.get(self.foreign_key)
@@ -137,7 +141,9 @@ class BelongsTo(Relation):
 
     def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
         related_cls = _resolve_model(self._related)
-        fk_vals = list({inst.__dict__.get(self.foreign_key) for inst in instances} - {None})
+        fk_vals = list(
+            {inst.__dict__.get(self.foreign_key) for inst in instances} - {None}
+        )
         if not fk_vals:
             for inst in instances:
                 inst.__dict__[f"_rel_{self.name}"] = None
@@ -176,7 +182,9 @@ class HasOne(Relation):
         if cached is not _UNLOADED:
             return cached
         related_cls = _resolve_model(self._related)
-        from ._connection import get_connection  # pylint: disable=import-outside-toplevel
+        from ._connection import (
+            get_connection,
+        )  # pylint: disable=import-outside-toplevel
 
         conn = get_connection()
         local_val = obj.__dict__[self.local_key]
@@ -261,7 +269,9 @@ class ManyToMany(Relation):
         cached = obj.__dict__.get(f"_rel_{self.name}", _UNLOADED)
         if cached is not _UNLOADED:
             return cached
-        from ._connection import get_connection  # pylint: disable=import-outside-toplevel
+        from ._connection import (
+            get_connection,
+        )  # pylint: disable=import-outside-toplevel
 
         conn = get_connection()
         local_val = obj.__dict__[self.local_key]
