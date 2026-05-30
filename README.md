@@ -312,37 +312,6 @@ _meta = ModelMeta(table="TableName", id_column="PrimaryKeyColumn")
 - `table`: SQL table name (required)
 - `id_column`: Primary key column (default: `"id"`)
 
-### Field Name Equivalence
-
-**Design Decision:** Dataclass field names must exactly match database column names. There is no mapping or translation layer.
-
-```python
-from icemodel import Model, ModelMeta, field_names
-
-@field_names
-@dataclass(frozen=True)
-class Artist(Model):
-    _meta = ModelMeta(table="Artist", id_column="ArtistId")
-    
-    ArtistId: int = 0          # Field name == column name "ArtistId"
-    Name: str | None = None    # Field name == column name "Name"
-```
-
-This ensures:
-- Simple, predictable behavior — what you see is what you get
-- Schema generation and hydration are trivial — no mapping metadata needed
-- Clear correspondence between Python types and SQL columns
-
-**Column Name Validation:** There is no lightweight way to validate dataclass field names at the Python layer without significant runtime overhead. Instead, the database enforces column name errors. If you reference a non-existent column in a query, the SQL will fail with a database error at execution time.
-
-```python
-# This compiles and runs, but SQLite will error if "InvalidColumn" doesn't exist
-tuple(Artist.query().where("InvalidColumn", "value"))
-# sqlite3.OperationalError: no such column: InvalidColumn
-```
-
-If your database uses different naming conventions (snake_case columns, CamelCase classes), rename the fields to match the actual column names.
-
 ### Field Names as Enums & Type Safety
 
 Each model with the `@field_names` decorator automatically generates a `Fields` enum that maps to field names. Use it for type-safe column references in queries:
@@ -462,6 +431,27 @@ Op.EQ, Op.NE, Op.LT, Op.LE, Op.GT, Op.GE, Op.LIKE, Op.NOT_LIKE, Op.IS, Op.IS_NOT
 ```
 
 All builder methods return the builder for chaining. Iteration (implicit via tuple() or explicit loops) fetches results. Collection-returning methods (`insert()`, `update()`) return immutable tuples.
+
+### Field Name Equivalence
+
+**Design Decision:** Dataclass field names must exactly match database column names. There is no mapping or translation layer.
+
+```python
+from icemodel import Model, ModelMeta, field_names
+
+@field_names
+@dataclass(frozen=True)
+class Artist(Model):
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
+    
+    ArtistId: int = 0          # Field name == column name "ArtistId"
+    Name: str | None = None    # Field name == column name "Name"
+```
+
+This ensures:
+- Simple, predictable behavior — what you see is what you get
+- Schema generation and hydration are trivial — no mapping metadata needed
+- Clear correspondence between Python types and SQL columns
 
 ### Schema Mapping at System Boundaries
 
