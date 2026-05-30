@@ -44,8 +44,7 @@ class TestPatchKeyTyping:
 
 class TestFieldsEnumAccess:
     def test_nonexistent_fields_member(self, chinook: sqlite3.Connection) -> None:
-        # Fields is typed as Any — mypy cannot catch nonexistent member access.
-        # Synthesizing a proper Enum subtype requires module-level symbol table
-        # registration that the ClassDefContext API does not expose.
+        # mypy now catches this (type: ignore is required for the test to compile).
+        # AttributeError is still raised at runtime since TYPO is not a real member.
         with pytest.raises(AttributeError):
-            _ = Artist.Fields.TYPO
+            _ = Artist.Fields.TYPO  # type: ignore[attr-defined]

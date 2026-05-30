@@ -239,7 +239,7 @@ class TestToSql:
         assert params == []
 
     def test_to_sql_with_select_all(self, chinook: sqlite3.Connection) -> None:
-        sql, params = Artist.query().select(*Artist.Fields).to_sql()
+        sql, params = Artist.query().select(*Artist.Fields).to_sql()  # type: ignore[misc]
         assert sql == "SELECT ArtistId, Name FROM Artist"
         assert params == []
 
