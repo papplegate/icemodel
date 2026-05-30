@@ -10,8 +10,9 @@ from tests.models import Album, Artist, Customer, Employee, Invoice, Playlist, T
 
 class TestHasManyLazy:
     def test_artist_albums_lazy(self, chinook: sqlite3.Connection) -> None:
-        artist = Artist.query().find_by_id(1)
-        assert artist is not None
+        _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+        assert len(_results) > 0
+        artist = _results[0]
         albums = artist.albums
         assert isinstance(albums, list)
         assert len(albums) > 0
@@ -19,15 +20,17 @@ class TestHasManyLazy:
         assert all(a.ArtistId == 1 for a in albums)
 
     def test_lazy_result_cached(self, chinook: sqlite3.Connection) -> None:
-        artist = Artist.query().find_by_id(1)
-        assert artist is not None
+        _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+        assert len(_results) > 0
+        artist = _results[0]
         first_call = artist.albums
         second_call = artist.albums
         assert first_call is second_call  # same list object — no second query
 
     def test_customer_invoices(self, chinook: sqlite3.Connection) -> None:
-        customer = Customer.query().find_by_id(1)
-        assert customer is not None
+        _results = tuple(Customer.query().where(Customer.Fields.CUSTOMERID, 1).limit(1))
+        assert len(_results) > 0
+        customer = _results[0]
         assert all(inv.CustomerId == 1 for inv in customer.invoices)
 
 
@@ -50,22 +53,25 @@ class TestHasManyEager:
 
 class TestBelongsToLazy:
     def test_album_artist_lazy(self, chinook: sqlite3.Connection) -> None:
-        album = Album.query().find_by_id(1)
-        assert album is not None
+        _results = tuple(Album.query().where(Album.Fields.ALBUMID, 1).limit(1))
+        assert len(_results) > 0
+        album = _results[0]
         artist = album.artist
         assert isinstance(artist, Artist)
         assert artist.ArtistId == album.ArtistId
 
     def test_track_album_lazy(self, chinook: sqlite3.Connection) -> None:
-        track = Track.query().find_by_id(1)
-        assert track is not None
+        _results = tuple(Track.query().where(Track.Fields.TRACKID, 1).limit(1))
+        assert len(_results) > 0
+        track = _results[0]
         album = track.album
         assert isinstance(album, Album)
         assert album.AlbumId == track.AlbumId
 
     def test_invoice_customer_lazy(self, chinook: sqlite3.Connection) -> None:
-        invoice = Invoice.query().find_by_id(1)
-        assert invoice is not None
+        _results = tuple(Invoice.query().where(Invoice.Fields.INVOICEID, 1).limit(1))
+        assert len(_results) > 0
+        invoice = _results[0]
         customer = invoice.customer
         assert isinstance(customer, Customer)
         assert customer.CustomerId == invoice.CustomerId
@@ -82,20 +88,23 @@ class TestBelongsToEager:
 class TestSelfReferentialRelation:
     def test_employee_manager_lazy(self, chinook: sqlite3.Connection) -> None:
         # EmployeeId=2 reports to EmployeeId=1
-        emp = Employee.query().find_by_id(2)
-        assert emp is not None
+        _results = tuple(Employee.query().where(Employee.Fields.EMPLOYEEID, 2).limit(1))
+        assert len(_results) > 0
+        emp = _results[0]
         manager = emp.manager
         assert isinstance(manager, Employee)
         assert manager.EmployeeId == emp.ReportsTo
 
     def test_top_level_employee_has_no_manager(self, chinook: sqlite3.Connection) -> None:
-        emp = Employee.query().find_by_id(1)
-        assert emp is not None
+        _results = tuple(Employee.query().where(Employee.Fields.EMPLOYEEID, 1).limit(1))
+        assert len(_results) > 0
+        emp = _results[0]
         assert emp.manager is None
 
     def test_direct_reports(self, chinook: sqlite3.Connection) -> None:
-        boss = Employee.query().find_by_id(1)
-        assert boss is not None
+        _results = tuple(Employee.query().where(Employee.Fields.EMPLOYEEID, 1).limit(1))
+        assert len(_results) > 0
+        boss = _results[0]
         reports = boss.direct_reports
         assert len(reports) > 0
         assert all(r.ReportsTo == 1 for r in reports)
@@ -103,16 +112,18 @@ class TestSelfReferentialRelation:
 
 class TestManyToManyLazy:
     def test_playlist_tracks_lazy(self, chinook: sqlite3.Connection) -> None:
-        playlist = Playlist.query().find_by_id(1)
-        assert playlist is not None
+        _results = tuple(Playlist.query().where(Playlist.Fields.PLAYLISTID, 1).limit(1))
+        assert len(_results) > 0
+        playlist = _results[0]
         tracks = playlist.tracks
         assert isinstance(tracks, list)
         assert len(tracks) > 0
         assert all(isinstance(t, Track) for t in tracks)
 
     def test_track_playlists_lazy(self, chinook: sqlite3.Connection) -> None:
-        track = Track.query().find_by_id(1)
-        assert track is not None
+        _results = tuple(Track.query().where(Track.Fields.TRACKID, 1).limit(1))
+        assert len(_results) > 0
+        track = _results[0]
         playlists = track.playlists
         assert isinstance(playlists, list)
         assert all(isinstance(p, Playlist) for p in playlists)

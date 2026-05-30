@@ -152,12 +152,6 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     # Execution                                                            #
     # ------------------------------------------------------------------ #
 
-    def find_by_id(self, id_val: Any) -> T | None:
-        id_col = self._model_class._meta.id_column  # pylint: disable=protected-access
-        id_field = _column_to_enum(self._model_class, id_col)
-        results = tuple(self.where(id_field, id_val).limit(1))
-        return results[0] if results else None
-
     def count(self) -> int:
         saved = self._selects
         self._selects = ["COUNT(*) AS n"]

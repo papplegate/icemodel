@@ -95,13 +95,15 @@ class TestLimitOffset:
 
 class TestFindById:
     def test_finds_existing(self, chinook: sqlite3.Connection) -> None:
-        artist = Artist.query().find_by_id(1)
-        assert artist is not None
+        _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+        assert len(_results) > 0
+        artist = _results[0]
         assert artist.ArtistId == 1
         assert artist.Name == "AC/DC"
 
     def test_returns_none_for_missing(self, chinook: sqlite3.Connection) -> None:
-        assert Artist.query().find_by_id(999_999) is None
+        _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 999_999).limit(1))
+        assert len(_results) == 0
 
 
 class TestFirst:
@@ -130,7 +132,8 @@ class TestDatetimeCoercion:
     def test_employee_birthdate_is_datetime(self, chinook: sqlite3.Connection) -> None:
         import datetime
 
-        emp = Employee.query().find_by_id(1)
+        _results = tuple(Employee.query().where(Employee.Fields.EMPLOYEEID, 1).limit(1))
+        emp = _results[0] if _results else None
         assert emp is not None
         assert isinstance(emp.BirthDate, datetime.datetime)
         assert isinstance(emp.HireDate, datetime.datetime)

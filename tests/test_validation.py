@@ -80,8 +80,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        original = ValidatedModel.query().find_by_id(1)
-        assert original is not None
+        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        assert len(_results) > 0
+        original = _results[0]
         modified = replace(original, name="Alice Updated")
         results = ValidatedModel.query().update([modified])
         assert results[0].name == "Alice Updated"
@@ -93,8 +94,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        original = ValidatedModel.query().find_by_id(1)
-        assert original is not None
+        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        assert len(_results) > 0
+        original = _results[0]
         invalid = replace(original, name="")
         with pytest.raises(ValueError, match="Validation failed for name"):
             ValidatedModel.query().update([invalid])
@@ -108,8 +110,9 @@ class TestValidation:
             {"name": "Alice Updated"}
         )
         assert rows_affected == 1
-        fetched = ValidatedModel.query().find_by_id(1)
-        assert fetched is not None
+        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        assert len(_results) > 0
+        fetched = _results[0]
         assert fetched.name == "Alice Updated"
 
     def test_patch_invalid_data_raises(self, writable_db: sqlite3.Connection) -> None:
@@ -155,8 +158,9 @@ class TestValidation:
         ValidatedModel.query().insert(
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
-        fetched = ValidatedModel.query().find_by_id(1)
-        assert fetched is not None
+        _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+        assert len(_results) > 0
+        fetched = _results[0]
         assert fetched.name == "Alice"
 
     def test_read_corrupted_data_raises(self, writable_db: sqlite3.Connection) -> None:
@@ -170,7 +174,9 @@ class TestValidation:
 
         # Attempting to read should fail validation
         with pytest.raises(ValueError, match="Validation failed for email"):
-            ValidatedModel.query().find_by_id(1)
+            _results = tuple(ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1))
+            assert len(_results) > 0
+            result = _results[0]
 
     def test_read_all_with_corrupted_data_raises(
         self, writable_db: sqlite3.Connection
