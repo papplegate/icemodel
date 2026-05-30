@@ -359,14 +359,6 @@ ValidatedModel.query().insert([corrupted])
 # ValueError: Validation failed for name: value must be non-empty
 ```
 
-**Trade-offs:**
-- ✓ No Field metadata or helper methods needed
-- ✓ Queries are simpler and more readable
-- ✓ No tight coupling between Python types and query construction
-- ✓ Errors are clear and include the actual query
-- ✗ Typos aren't caught until query execution
-- ✗ IDE autocomplete won't help with column names
-
 **When errors occur**, the full context is displayed: the exact SQL, parameters, and the database error. This makes debugging straightforward and surfaces issues that would be hidden by compile-time checking (e.g., when you rename a database column but forget to update code).
 
 ### Relations
