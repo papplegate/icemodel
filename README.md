@@ -6,16 +6,17 @@ A minimal, dependency-free ORM for Python inspired by [objection.js](https://vin
 
 ### Define Models
 
-Models are frozen dataclasses with a `_meta` dict for table metadata:
+Models are frozen dataclasses with a `_meta` ModelMeta instance for table metadata:
 
 ```python
 from dataclasses import dataclass
 from typing import ClassVar
-from icemodel import Model, HasMany, BelongsTo
+from icemodel import Model, ModelMeta, HasMany, BelongsTo, field_names
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
-    _meta = {"table": "Artist", "id_column": "ArtistId"}
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
     
     albums: ClassVar[HasMany] = HasMany(
         "Album", foreign_key="ArtistId", local_key="ArtistId"
@@ -24,9 +25,10 @@ class Artist(Model):
     ArtistId: int = 0
     Name: str | None = None
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Album(Model):
-    _meta = {"table": "Album", "id_column": "AlbumId"}
+    _meta = ModelMeta(table="Album", id_column="AlbumId")
     
     artist: ClassVar[BelongsTo] = BelongsTo(
         "Artist", foreign_key="ArtistId", owner_key="ArtistId"
@@ -53,26 +55,29 @@ Model.bind(conn)
 ### Query
 
 ```python
-# Fetch all
-artists = Artist.query().all()
+from icemodel._query_builder import Op
+
+# Fetch all (iterate over results)
+artists = tuple(Artist.query())
 
 # Filter, order, limit
-top_artists = (
+top_artists = tuple(
     Artist.query()
-    .where("Name", "LIKE", "The %")
-    .order_by("Name")
+    .where(Artist.Fields.NAME, Op.LIKE, "The %")
+    .order_by(Artist.Fields.NAME)
     .limit(10)
-    .all()
 )
 
 # Find by primary key
-artist = Artist.query().find_by_id(1)
+_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+artist = _results[0] if _results else None
 
 # Count
 num_artists = Artist.query().count()
 
-# First
-first = Artist.query().order_by("Name").first()
+# Get first (with ordering)
+_results = tuple(Artist.query().order_by(Artist.Fields.NAME).limit(1))
+first = _results[0] if _results else None
 ```
 
 ### Relations — Lazy Loading
@@ -80,7 +85,8 @@ first = Artist.query().order_by("Name").first()
 Access related records lazily (one query per access):
 
 ```python
-artist = Artist.query().find_by_id(1)
+_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+artist = _results[0] if _results else None
 albums = artist.albums  # Fetches all albums for this artist
 ```
 
@@ -89,7 +95,7 @@ albums = artist.albums  # Fetches all albums for this artist
 Batch-fetch related records in one query per relation:
 
 ```python
-artists = Artist.query().with_related("albums").all()
+artists = tuple(Artist.query().with_related("albums"))
 for artist in artists:
     albums = artist.albums  # Already loaded, no extra queries
 ```
@@ -113,8 +119,9 @@ assert isinstance(artists, tuple)
 # Fetch, modify with dataclasses.replace(), then update by primary key
 from dataclasses import replace
 
-artist = Artist.query().find_by_id(1)
-if artist is not None:
+_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+if len(_results) > 0:
+    artist = _results[0]
     modified = replace(artist, Name="Changed")
     result = Artist.query().update([modified])
     # Returns tuple of updated instances
@@ -123,12 +130,12 @@ if artist is not None:
 **Patch (partial fields with where clause):**
 ```python
 # Update specific fields of filtered records
-rows_affected = Artist.query().where("Country", "UK").patch({"Country": "GB"})
+rows_affected = Artist.query().where(Artist.Fields.COUNTRY, "UK").patch({"Country": "GB"})
 ```
 
 **Delete:**
 ```python
-Artist.query().where("ArtistId", 1).delete()
+Artist.query().where(Artist.Fields.ARTISTID, 1).delete()
 ```
 
 ### Transactions
@@ -170,6 +177,7 @@ Define field validators using dataclass field metadata for semantic constraints 
 
 ```python
 from dataclasses import dataclass, field
+from icemodel import Model, ModelMeta, field_names
 
 def is_email(value: str) -> bool:
     return "@" in value
@@ -177,9 +185,10 @@ def is_email(value: str) -> bool:
 def is_positive(value: int) -> bool:
     return value > 0
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class User(Model):
-    _meta = {"table": "User", "id_column": "UserId"}
+    _meta = ModelMeta(table="User", id_column="UserId")
     
     UserId: int = 0
     Email: str = field(default="", metadata={"validator": is_email})
@@ -188,7 +197,7 @@ class User(Model):
 
 Validation runs on:
 - **Write operations**: `insert()`, `update()`, `patch()` validate before SQL executes
-- **Read operations**: `all()`, `first()`, `find_by_id()`, eager loading validate when hydrating models from database rows
+- **Read operations**: Iterator protocol and eager loading validate when hydrating models from database rows
 
 Validation **skips** `None` values (nullable fields are treated as optional). Invalid data raises `ValueError`:
 
@@ -201,11 +210,12 @@ User.query().insert([User(UserId=2, Email="invalid", Age=30)])
 # ValueError: Validation failed for Email='invalid'
 
 # Read also validates: catches data corruption from external writes
-user = User.query().find_by_id(1)  # Validates on hydration
+_results = tuple(User.query().where(User.Fields.USERID, 1).limit(1))
+user = _results[0] if _results else None  # Validates on hydration
 # If data was corrupted (e.g., via direct SQL), ValueError is raised
 ```
 
-Validators are callable(value) -> bool returning True if valid. **Validation runs both at write time (insert/update/patch) and read time (all/first/find_by_id), ensuring data integrity throughout the model lifecycle.**
+Validators are callable(value) -> bool returning True if valid. **Validation runs both at write time (insert/update/patch) and read time (iterator protocol, eager loading), ensuring data integrity throughout the model lifecycle.**
 
 **Division of concerns:**
 - **Type hints & schema** (`NOT NULL`, data types) — enforced by database, prevents structural violations
@@ -281,16 +291,20 @@ To modify a fetched instance, create a copy with `dataclasses.replace()`:
 ```python
 from dataclasses import replace
 
-artist = Artist.query().find_by_id(1)
-updated = replace(artist, Name="New Name")
-Artist.query().where("ArtistId", updated.ArtistId).patch({"Name": updated.Name})
+_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+artist = _results[0] if _results else None
+if artist is not None:
+    updated = replace(artist, Name="New Name")
+    Artist.query().where(Artist.Fields.ARTISTID, updated.ArtistId).patch({"Name": updated.Name})
 ```
 
 ### Model Metadata
 
-Each model declares a `_meta` dict:
+Each model declares a `_meta` ModelMeta instance:
 ```python
-_meta = {"table": "TableName", "id_column": "PrimaryKeyColumn"}
+from icemodel import ModelMeta
+
+_meta = ModelMeta(table="TableName", id_column="PrimaryKeyColumn")
 ```
 
 - `table`: SQL table name (required)
@@ -301,9 +315,12 @@ _meta = {"table": "TableName", "id_column": "PrimaryKeyColumn"}
 **Design Decision:** Dataclass field names must exactly match database column names. There is no mapping or translation layer.
 
 ```python
+from icemodel import Model, ModelMeta, field_names
+
+@field_names
 @dataclass(frozen=True)
 class Artist(Model):
-    _meta = {"table": "Artist", "id_column": "ArtistId"}
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
     
     ArtistId: int = 0          # Field name == column name "ArtistId"
     Name: str | None = None    # Field name == column name "Name"
@@ -318,7 +335,7 @@ This ensures:
 
 ```python
 # This compiles and runs, but SQLite will error if "InvalidColumn" doesn't exist
-Artist.query().where("InvalidColumn", "value").all()
+tuple(Artist.query().where("InvalidColumn", "value"))
 # sqlite3.OperationalError: no such column: InvalidColumn
 ```
 
@@ -326,16 +343,21 @@ If your database uses different naming conventions (snake_case columns, CamelCas
 
 ### Field Names as Enums
 
-Each model automatically generates a `Fields` enum that maps to field names. Use it to reference columns in queries:
+Each model with the `@field_names` decorator automatically generates a `Fields` enum that maps to field names. Use it to reference columns in queries:
 
 ```python
-# Fields enum is created automatically on first instance
-artist = Artist(ArtistId=1, Name="AC/DC")
+from icemodel import field_names
 
-# Access field names via enum
-Artist.query().where(Artist.Fields.ARTISTID.value, 1).first()
-Artist.query().where(Artist.Fields.NAME.value, "AC/DC").all()
-Artist.query().order_by(Artist.Fields.ARTISTID.value).all()
+@field_names
+@dataclass(eq=False, frozen=True)
+class Artist(Model):
+    ...
+
+# Access field names via enum members
+_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+artist = _results[0] if _results else None
+tuple(Artist.query().where(Artist.Fields.NAME, "AC/DC"))
+tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
 ```
 
 The enum provides:
@@ -348,16 +370,23 @@ The enum provides:
 Field name mapping should happen at **system boundaries**, not in the ORM. This keeps the ORM simple and transparent while giving you full control over schema transformation where it actually belongs.
 
 ```python
+from icemodel import Model, ModelMeta, field_names
+
 # Database layer: direct correspondence, no mapping
+@field_names
 @dataclass(frozen=True)
 class Artist(Model):
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
     ArtistId: int = 0
     Name: str | None = None
 
 # API boundary: transform to external schema
 @app.get("/artists/{id}")
 def get_artist(id: int):
-    db_artist = Artist.query().find_by_id(id)
+    _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, id).limit(1))
+    db_artist = _results[0] if _results else None
+    if db_artist is None:
+        raise NotFound()
     return {
         "artist_id": db_artist.ArtistId,      # Map to API schema
         "artist_name": db_artist.Name,
@@ -387,7 +416,7 @@ Rather than using type-based validation to catch column name errors at runtime, 
 All SQL execution is wrapped to catch database errors (`sqlite3.OperationalError`) and display the full query alongside the error:
 
 ```python
-Artist.query().where("InvalidColumn", "value").all()
+tuple(Artist.query().where("InvalidColumn", "value"))
 
 # Raises:
 # sqlite3.OperationalError: no such column: InvalidColumn
@@ -455,17 +484,17 @@ class Album(Model):
 
 ### Query Builder
 
-The `QueryBuilder` provides a fluent API for building type-safe queries. Column references are specified as strings matching the dataclass field names:
+The `QueryBuilder` provides a fluent API for building type-safe queries. Column references are specified via the `Fields` enum:
 
 ```python
 from icemodel._query_builder import Op
 
-Artist.query().where("Name", Op.LIKE, "The %")
-Album.query().where_in("ArtistId", [1, 2, 3])
-Track.query().order_by("Name", "DESC")
+Artist.query().where(Artist.Fields.NAME, Op.LIKE, "The %")
+Album.query().where_in(Album.Fields.ARTISTID, [1, 2, 3])
+Track.query().order_by(Track.Fields.NAME, "DESC")
 ```
 
-**Methods:**
+**Query Methods (return QueryBuilder for chaining):**
 
 - `where(field, value)` — equality filter  
   `where(field, Op.EQ, value)` — explicit equality
@@ -474,29 +503,32 @@ Track.query().order_by("Name", "DESC")
 - `order_by(field, "ASC"|"DESC")` — sort
 - `limit(n)` — limit results
 - `offset(n)` — skip results
+- `select(*fields)` — select specific columns
 - `with_related(name, ...)` — eager load relations
-- `all()` — fetch all matching rows as a tuple of model instances
-- `first()` — fetch first row (or None)
-- `find_by_id(id)` — fetch by primary key (or None)
+
+**Execution (via iterator protocol or explicit methods):**
+
+- Iterate with `tuple(query)` or `for row in query` — fetch all matching rows
 - `count()` — count matching rows
 - `insert(models)` — insert multiple model instances, return tuple
 - `update(models)` — update model instances by primary key, return tuple
 - `patch(dict)` — partial update of filtered rows with field changes, return row count
 - `delete()` — delete matching rows
+- `to_sql()` — inspect generated SQL (returns tuple of sql string and params)
 
 **Op Enum** — Comparison operators:
 ```python
 Op.EQ, Op.NE, Op.LT, Op.LE, Op.GT, Op.GE, Op.LIKE, Op.NOT_LIKE, Op.IS, Op.IS_NOT
 ```
 
-All methods except terminal ones return the builder for chaining. Collection-returning methods (`all()`, `insert()`, `update()`) return immutable tuples.
+All builder methods return the builder for chaining. Iteration (implicit via tuple() or explicit loops) fetches results. Collection-returning methods (`insert()`, `update()`) return immutable tuples.
 
 ## Type Safety
 
 All code passes:
 - **mypy strict** — full type checking, no `Any` escapes
 - **pylint 10.00/10** — code quality and style
-- **pytest** — 94 tests covering queries, CRUD, relations, transactions, schema generation, field validation
+- **pytest** — 103 tests covering queries, CRUD, relations, transactions, schema generation, field validation
 
 Use `@dataclass(eq=False, frozen=True)` with typed fields for IDE autocomplete and static type checking.
 
@@ -541,7 +573,7 @@ uv run mypy
 
 Lint:
 ```bash
-uv run pylint src/ormen
+uv run pylint src/icemodel
 ```
 
 Test database: [Chinook](https://github.com/lerocha/chinook-database) (music store sample DB).
