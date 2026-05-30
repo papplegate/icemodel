@@ -75,7 +75,7 @@ class HasMany(Relation):
         conn = get_connection()
         local_val = obj.__dict__[self.local_key]
         rows = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.foreign_key} = ?",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.foreign_key} = ?",
             (local_val,),
         ).fetchall()
         result = [from_row(related_cls, r) for r in rows]
@@ -87,7 +87,7 @@ class HasMany(Relation):
         ids = [inst.__dict__[self.local_key] for inst in instances]
         ph = ",".join("?" * len(ids))
         rows = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.foreign_key} IN ({ph})",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.foreign_key} IN ({ph})",
             ids,
         ).fetchall()
         grouped: dict[Any, list[Model]] = {}
@@ -128,7 +128,7 @@ class BelongsTo(Relation):
             obj.__dict__[f"_rel_{self.name}"] = None
             return None
         row = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.owner_key} = ?",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.owner_key} = ?",
             (fk_val,),
         ).fetchone()
         result = from_row(related_cls, row) if row else None
@@ -144,7 +144,7 @@ class BelongsTo(Relation):
             return
         ph = ",".join("?" * len(fk_vals))
         rows = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.owner_key} IN ({ph})",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.owner_key} IN ({ph})",
             fk_vals,
         ).fetchall()
         by_key: dict[Any, Model] = {
@@ -181,7 +181,7 @@ class HasOne(Relation):
         conn = get_connection()
         local_val = obj.__dict__[self.local_key]
         row = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.foreign_key} = ? LIMIT 1",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.foreign_key} = ? LIMIT 1",
             (local_val,),
         ).fetchone()
         result = from_row(related_cls, row) if row else None
@@ -193,7 +193,7 @@ class HasOne(Relation):
         ids = [inst.__dict__[self.local_key] for inst in instances]
         ph = ",".join("?" * len(ids))
         rows = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.foreign_key} IN ({ph})",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.foreign_key} IN ({ph})",
             ids,
         ).fetchall()
         by_fk: dict[Any, Model] = {}
@@ -241,7 +241,7 @@ class ManyToMany(Relation):
             return {}
         ph2 = ",".join("?" * len(related_ids))
         related_rows = conn.execute(
-            f"SELECT * FROM {related_cls._meta["table"]} WHERE {self.related_pk} IN ({ph2})",
+            f"SELECT * FROM {related_cls._meta.table} WHERE {self.related_pk} IN ({ph2})",
             related_ids,
         ).fetchall()
         by_pk: dict[Any, Model] = {

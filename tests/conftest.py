@@ -1,4 +1,4 @@
-"""Pytest fixtures for the ormen test suite.
+"""Pytest fixtures for the icemodel test suite.
 
 ``chinook`` is session-scoped (loaded once, read-only).
 ``writable_db`` is function-scoped (fresh in-memory DB per test, for CRUD tests).
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from ormen import Model
+from icemodel import Model
 
 # Import models so they register in _model_registry before any test runs.
 import tests.models  # noqa: F401
@@ -38,6 +38,20 @@ CREATE TABLE BookTag (
     BookId INTEGER NOT NULL,
     TagId  INTEGER NOT NULL,
     PRIMARY KEY (BookId, TagId)
+) STRICT;
+
+CREATE TABLE ValidatedModel (
+    id    INTEGER NOT NULL,
+    name  TEXT    NOT NULL,
+    email TEXT    NOT NULL,
+    age   INTEGER NOT NULL,
+    PRIMARY KEY (id)
+) STRICT;
+
+CREATE TABLE NullableModel (
+    id    INTEGER NOT NULL,
+    email TEXT,
+    PRIMARY KEY (id)
 ) STRICT;
 """
 

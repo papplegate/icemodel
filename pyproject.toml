@@ -1,7 +1,7 @@
 [project]
-name = "ormen"
+name = "icemodel"
 version = "0.1.0"
-description = "Add your description here"
+description = "Minimal Python ORM with frozen dataclasses, fluent queries, and zero dependencies"
 readme = "README.md"
 authors = [
     { name = "papplegate", email = "papplega@gmail.com" }
@@ -26,7 +26,7 @@ testpaths = ["tests"]
 
 [tool.mypy]
 strict = true
-files = ["src/ormen"]
+files = ["src/icemodel"]
 
 [tool.pylint.main]
 source-roots = ["src"]

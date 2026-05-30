@@ -1,7 +1,8 @@
 """Chinook database model definitions used across the test suite.
 
-All models use ``@dataclass(eq=False, frozen=True)`` so that Model's primary-key equality
-is preserved rather than the field-wise equality that @dataclass would generate.
+All models use ``@field_names`` then ``@dataclass(eq=False, frozen=True)`` so that
+Model's primary-key equality is preserved rather than the field-wise equality that
+@dataclass would generate.
 """
 
 from __future__ import annotations
@@ -10,12 +11,13 @@ import datetime
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ormen import BelongsTo, HasMany, ManyToMany, Model
+from icemodel import BelongsTo, HasMany, ManyToMany, Model, ModelMeta, field_names
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Artist(Model):
-    _meta = {"table": "Artist", "id_column": "ArtistId"}
+    _meta = ModelMeta(table="Artist", id_column="ArtistId")
 
     albums: ClassVar[HasMany] = HasMany(
         "Album", foreign_key="ArtistId", local_key="ArtistId"
@@ -25,9 +27,10 @@ class Artist(Model):
     Name: str | None = None
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Album(Model):
-    _meta = {"table": "Album", "id_column": "AlbumId"}
+    _meta = ModelMeta(table="Album", id_column="AlbumId")
 
     artist: ClassVar[BelongsTo] = BelongsTo(
         "Artist", foreign_key="ArtistId", owner_key="ArtistId"
@@ -41,9 +44,10 @@ class Album(Model):
     ArtistId: int = 0
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Track(Model):
-    _meta = {"table": "Track", "id_column": "TrackId"}
+    _meta = ModelMeta(table="Track", id_column="TrackId")
 
     album: ClassVar[BelongsTo] = BelongsTo(
         "Album", foreign_key="AlbumId", owner_key="AlbumId"
@@ -68,9 +72,10 @@ class Track(Model):
     UnitPrice: float = 0.0
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Playlist(Model):
-    _meta = {"table": "Playlist", "id_column": "PlaylistId"}
+    _meta = ModelMeta(table="Playlist", id_column="PlaylistId")
 
     tracks: ClassVar[ManyToMany] = ManyToMany(
         "Track",
@@ -85,9 +90,10 @@ class Playlist(Model):
     Name: str | None = None
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Customer(Model):
-    _meta = {"table": "Customer", "id_column": "CustomerId"}
+    _meta = ModelMeta(table="Customer", id_column="CustomerId")
 
     invoices: ClassVar[HasMany] = HasMany(
         "Invoice", foreign_key="CustomerId", local_key="CustomerId"
@@ -108,9 +114,10 @@ class Customer(Model):
     SupportRepId: int | None = None
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Invoice(Model):
-    _meta = {"table": "Invoice", "id_column": "InvoiceId"}
+    _meta = ModelMeta(table="Invoice", id_column="InvoiceId")
 
     customer: ClassVar[BelongsTo] = BelongsTo(
         "Customer", foreign_key="CustomerId", owner_key="CustomerId"
@@ -130,9 +137,10 @@ class Invoice(Model):
     Total: float = 0.0
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class InvoiceLine(Model):
-    _meta = {"table": "InvoiceLine", "id_column": "InvoiceLineId"}
+    _meta = ModelMeta(table="InvoiceLine", id_column="InvoiceLineId")
 
     invoice: ClassVar[BelongsTo] = BelongsTo(
         "Invoice", foreign_key="InvoiceId", owner_key="InvoiceId"
@@ -145,9 +153,10 @@ class InvoiceLine(Model):
     Quantity: int = 0
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Employee(Model):
-    _meta = {"table": "Employee", "id_column": "EmployeeId"}
+    _meta = ModelMeta(table="Employee", id_column="EmployeeId")
 
     manager: ClassVar[BelongsTo] = BelongsTo(
         "Employee", foreign_key="ReportsTo", owner_key="EmployeeId"
@@ -173,9 +182,10 @@ class Employee(Model):
     Email: str | None = None
 
 
+@field_names
 @dataclass(eq=False, frozen=True)
 class Genre(Model):
-    _meta = {"table": "Genre", "id_column": "GenreId"}
+    _meta = ModelMeta(table="Genre", id_column="GenreId")
 
     GenreId: int = 0
     Name: str | None = None

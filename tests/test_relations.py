@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 
+from icemodel._query_builder import Op
 from tests.models import Album, Artist, Customer, Employee, Invoice, Playlist, Track
 
 
@@ -32,14 +33,14 @@ class TestHasManyLazy:
 
 class TestHasManyEager:
     def test_eager_loads_albums_for_all_artists(self, chinook: sqlite3.Connection) -> None:
-        artists = Artist.query().with_related("albums").limit(10).all()
+        artists = tuple(Artist.query().with_related("albums").limit(10))
         # Every artist should have the _rel_albums key populated (even if empty list)
         for artist in artists:
             assert f"_rel_albums" in artist.__dict__
             assert all(isinstance(a, Album) for a in artist.albums)
 
     def test_eager_albums_correct_fk(self, chinook: sqlite3.Connection) -> None:
-        artists = Artist.query().with_related("albums").where_in("ArtistId", [1, 4]).all()
+        artists = tuple(Artist.query().with_related("albums").where_in(Artist.Fields.ARTISTID, [1, 4]))
         by_id = {a.ArtistId: a for a in artists}
         for album in by_id[1].albums:
             assert album.ArtistId == 1
@@ -72,7 +73,7 @@ class TestBelongsToLazy:
 
 class TestBelongsToEager:
     def test_eager_album_artist(self, chinook: sqlite3.Connection) -> None:
-        albums = Album.query().with_related("artist").limit(5).all()
+        albums = tuple(Album.query().with_related("artist").limit(5))
         for album in albums:
             assert isinstance(album.artist, Artist)
             assert album.artist.ArtistId == album.ArtistId
@@ -119,7 +120,7 @@ class TestManyToManyLazy:
 
 class TestManyToManyEager:
     def test_eager_playlist_tracks(self, chinook: sqlite3.Connection) -> None:
-        playlists = Playlist.query().with_related("tracks").limit(3).all()
+        playlists = tuple(Playlist.query().with_related("tracks").limit(3))
         for pl in playlists:
             assert "_rel_tracks" in pl.__dict__
             assert all(isinstance(t, Track) for t in pl.tracks)
@@ -128,4 +129,4 @@ class TestManyToManyEager:
         import pytest
 
         with pytest.raises(AttributeError, match="no relation"):
-            Artist.query().with_related("nonexistent").all()
+            tuple(Artist.query().with_related("nonexistent"))
