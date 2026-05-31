@@ -4,6 +4,69 @@ A minimal, dependency-free ORM for Python inspired by [objection.js](https://vin
 
 icemodel treats frozen dataclasses as the single source of truth for both models and query results. Every value that crosses the database boundary — whether fetched through the ORM or via a raw SQL query — arrives as an immutable, typed Python object whose shape is declared in code and checked by mypy. The raw query escape hatch is a first-class feature: write arbitrary SQL for joins, aggregations, and window functions, declare the expected result shape as a `RawResultRow` subclass, and get back a typed, validated, frozen dataclass. Most Python database libraries return dicts or loosely-typed row objects and leave interpretation to the caller; icemodel enforces the contract at the boundary so the rest of your code can rely on it.
 
+## Comparison
+
+### vs Other Python ORMs (SQLAlchemy, Django ORM, Tortoise ORM)
+
+| Feature | icemodel | Major ORMs |
+|---------|----------|-----------|
+| Dependencies | Zero | Multiple |
+| Setup complexity | Minimal | Moderate-Complex |
+| Type safety | mypy strict | Varies |
+| Immutability | Enforced (frozen dataclasses) | Mutable instances |
+| Dirty tracking | Manual (via `replace()` + `patch()`) | Automatic |
+| Query API | Fluent, composable | Varies (SQLAlchemy is fluent) |
+| Databases | SQLite only | Multiple (Postgres, MySQL, etc.) |
+| Migrations | Separate tool | Built-in |
+| Code size | ~500 LOC | Thousands of LOC |
+
+**When to use icemodel:**
+- Small-to-medium projects
+- SQLite is sufficient
+- You want minimal dependencies
+- You prefer explicit over implicit (frozen dataclasses, manual updates)
+- You like readable, auditable code
+
+**When to use major ORMs:**
+- Multi-database support needed
+- Built-in migrations required
+- Complex relationships (polymorphism, etc.)
+- Automatic dirty tracking desired
+
+### vs Objection.js
+
+icemodel is inspired by [Objection.js](https://vincit.github.io/objection.js/) but tailored for Python:
+
+- **Similar**: Fluent query builder, relations with lazy/eager loading, emphasis on SQL (not hiding it)
+- **Different**: Python dataclasses instead of JavaScript classes, frozen instances for immutability, SQLite only (Objection supports any SQL database)
+
+### vs Raw SQL
+
+| Aspect | icemodel | Raw SQL |
+|--------|----------|---------|
+| Type safety | ✓ mypy strict | ✗ All strings |
+| SQL injection prevention | ✓ Auto-parameterized | Manual |
+| Type coercion | ✓ Datetime, etc. | Manual casting |
+| Model hydration | ✓ Auto row→instance | Manual |
+| Relation loading | ✓ Lazy/eager | Manual joins |
+| Composable queries | ✓ Builder pattern | String concat |
+| Debugging | ✓ `query.to_sql()` | Direct SQL |
+| Escape hatch | ✓ Raw SQL when needed | N/A |
+
+**Use icemodel when:** Type safety, composable queries, and automatic hydration matter.
+
+**Use raw SQL when:** Complex analytics, performance-critical queries, or you need full control.
+
+icemodel doesn't hide SQL — use `query.to_sql()` to inspect generated queries anytime.
+
+## Limitations (Intentional)
+
+- **SQLite only** — no other databases
+- **No migrations** — use a migration tool separately
+- **No N+1 prevention** — use `with_related()` for eager loading
+- **No automatic dirty tracking** — mutate via `dataclasses.replace()` + `patch()`
+- **No lazy properties** — relations are eagerly computed on access or pre-loaded with `with_related()`
+
 ## Installation
 
 icemodel requires Python 3.12 or later. Install it with pip:
@@ -177,7 +240,7 @@ with Artist.transaction():
     # Commits automatically on success; rolls back entirely on exception
 ```
 
-### Required vs. Optional Fields
+## Required vs. Optional Fields
 
 Field nullability is determined by type hints and enforced at the database layer:
 
@@ -199,7 +262,7 @@ CREATE TABLE User (
 
 SQLite enforces `NOT NULL` constraints automatically. If you try to insert `None` into a required field, the database rejects it with a constraint violation. **This is the single source of truth for field requirements.**
 
-### Field Validation
+## Field Validation
 
 Define field validators using dataclass field metadata for semantic constraints (format, range, etc.). Validators run **before insert/update/patch** operations, ensuring data integrity at the application layer:
 
@@ -251,60 +314,41 @@ Validators are callable(value) -> bool returning True if valid. **Validation run
 
 This design lets each layer do what it does best: SQLite handles structural constraints, Python handles semantic validation.
 
-## Comparison
+## Schema Generation
 
-### vs Other Python ORMs (SQLAlchemy, Django ORM, Tortoise ORM)
+Generate SQL CREATE TABLE statements from model definitions:
 
-| Feature | icemodel | Major ORMs |
-|---------|----------|-----------|
-| Dependencies | Zero | Multiple |
-| Setup complexity | Minimal | Moderate-Complex |
-| Type safety | mypy strict | Varies |
-| Immutability | Enforced (frozen dataclasses) | Mutable instances |
-| Dirty tracking | Manual (via `replace()` + `patch()`) | Automatic |
-| Query API | Fluent, composable | Varies (SQLAlchemy is fluent) |
-| Databases | SQLite only | Multiple (Postgres, MySQL, etc.) |
-| Migrations | Separate tool | Built-in |
-| Code size | ~500 LOC | Thousands of LOC |
+```python
+from icemodel import schema_for, schema_for_all
+from myapp.models import Artist, Album
 
-**When to use icemodel:**
-- Small-to-medium projects
-- SQLite is sufficient
-- You want minimal dependencies
-- You prefer explicit over implicit (frozen dataclasses, manual updates)
-- You like readable, auditable code
+# Single model
+print(schema_for(Artist))
 
-**When to use major ORMs:**
-- Multi-database support needed
-- Built-in migrations required
-- Complex relationships (polymorphism, etc.)
-- Automatic dirty tracking desired
+# All models
+for sql in schema_for_all([Artist, Album]):
+    print(sql)
+    db.execute(sql)
+```
 
-### vs Objection.js
+Or use the CLI:
 
-icemodel is inspired by [Objection.js](https://vincit.github.io/objection.js/) but tailored for Python:
+```bash
+python -m icemodel.schema
+```
 
-- **Similar**: Fluent query builder, relations with lazy/eager loading, emphasis on SQL (not hiding it)
-- **Different**: Python dataclasses instead of JavaScript classes, frozen instances for immutability, SQLite only (Objection supports any SQL database)
+## Error Reporting
 
-### vs Raw SQL
+All SQL execution is wrapped to provide clear error messages. When a query fails, the full context is shown — the exact SQL and parameters alongside the database error — making it straightforward to diagnose issues that would be hidden by compile-time checking alone (e.g. renaming a database column without updating code).
 
-| Aspect | icemodel | Raw SQL |
-|--------|----------|---------|
-| Type safety | ✓ mypy strict | ✗ All strings |
-| SQL injection prevention | ✓ Auto-parameterized | Manual |
-| Type coercion | ✓ Datetime, etc. | Manual casting |
-| Model hydration | ✓ Auto row→instance | Manual |
-| Relation loading | ✓ Lazy/eager | Manual joins |
-| Composable queries | ✓ Builder pattern | String concat |
-| Debugging | ✓ `query.to_sql()` | Direct SQL |
-| Escape hatch | ✓ Raw SQL when needed | N/A |
+```python
+# Example: validation error
+corrupted = ValidatedModel(id=1, name="", email="invalid", age=0)
+ValidatedModel.query().insert([corrupted])
 
-**Use icemodel when:** Type safety, composable queries, and automatic hydration matter.
-
-**Use raw SQL when:** Complex analytics, performance-critical queries, or you need full control.
-
-icemodel doesn't hide SQL—use `query.to_sql()` to inspect generated queries anytime.
+# Raises:
+# ValueError: Validation failed for name: value must be non-empty
+```
 
 ## Design
 
@@ -338,7 +382,7 @@ _meta = ModelMeta(table="TableName", id_column="PrimaryKeyColumn")
 - `table`: SQL table name (required)
 - `id_column`: Primary key column (default: `"id"`)
 
-### Field Names as Enums & Type Safety
+### Field Names and Type Safety
 
 The `@add_field_types` decorator generates a `Fields` enum on each model at runtime. The mypy plugin (see below) additionally synthesizes a `Partial` TypedDict and gives `Fields` proper member-level type checking.
 
@@ -389,61 +433,7 @@ tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid 
 tuple(Artist.query().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator
 ```
 
-### Mypy Plugin
-
-icemodel ships a mypy plugin (`plugin/mypy_plugin.py`) that synthesizes typed `Fields` and `Partial` attributes for each model class. Without it, mypy accepts any attribute access on `Fields` and `Partial` is unknown.
-
-Add to `pyproject.toml` or `mypy.ini`:
-
-```toml
-[tool.mypy]
-plugins = ["plugin.mypy_plugin"]
-```
-
-The plugin provides:
-- A synthetic `Fields` enum subtype with one member per model field — invalid members are caught at type-check time
-- A `Partial` TypedDict (total=False) — wrong keys and incompatible value types are caught when building patch data
-
-`Partial` is annotation-only: it exists as a type for mypy but has no runtime presence. Use it to annotate patch data dicts; passing those dicts to `patch()` works normally at runtime.
-
-### Error Reporting
-
-For any issues that do make it to the database, all SQL execution is wrapped to provide clear error messages:
-
-```python
-# Example: validation error
-corrupted = ValidatedModel(id=1, name="", email="invalid", age=0)
-ValidatedModel.query().insert([corrupted])
-
-# Raises:
-# ValueError: Validation failed for name: value must be non-empty
-```
-
-**When errors occur**, the full context is displayed: the exact SQL, parameters, and the database error. This makes debugging straightforward and surfaces issues that would be hidden by compile-time checking (e.g., when you rename a database column but forget to update code).
-
-### Relations
-
-Supported relation types:
-
-| Type | Usage | Example |
-|---|---|---|
-| `HasMany` | One-to-many | Artist → many Albums |
-| `BelongsTo` | Many-to-one | Album → one Artist |
-| `HasOne` | One-to-one | Person → one Passport |
-| `ManyToMany` | Many-to-many (via join table) | Playlist ↔ Tracks |
-
-All relations are declared as `ClassVar` on the model:
-```python
-@dataclass(eq=False, frozen=True)
-class Album(Model):
-    artist: ClassVar[BelongsTo] = BelongsTo(
-        "Artist",                    # Related model
-        foreign_key="ArtistId",      # Foreign key column on this table
-        owner_key="ArtistId"         # Primary key column on related table
-    )
-```
-
-### Query Builder
+### Query Builder Reference
 
 The `QueryBuilder` provides a fluent API for building type-safe queries. Column references are specified via the `Fields` enum:
 
@@ -490,6 +480,28 @@ Direction.ASCENDING, Direction.DESCENDING
 ```
 
 All builder methods return the builder for chaining. Iteration (implicit via tuple() or explicit loops) fetches results. Collection-returning methods (`insert()`, `update()`) return immutable tuples.
+
+### Relations Reference
+
+Supported relation types:
+
+| Type | Usage | Example |
+|---|---|---|
+| `HasMany` | One-to-many | Artist → many Albums |
+| `BelongsTo` | Many-to-one | Album → one Artist |
+| `HasOne` | One-to-one | Person → one Passport |
+| `ManyToMany` | Many-to-many (via join table) | Playlist ↔ Tracks |
+
+All relations are declared as `ClassVar` on the model:
+```python
+@dataclass(eq=False, frozen=True)
+class Album(Model):
+    artist: ClassVar[BelongsTo] = BelongsTo(
+        "Artist",                    # Related model
+        foreign_key="ArtistId",      # Foreign key column on this table
+        owner_key="ArtistId"         # Primary key column on related table
+    )
+```
 
 ### Field Name Equivalence
 
@@ -556,38 +568,28 @@ def import_legacy_data(legacy_dict):
 - No hidden metadata or configuration
 - Easy to audit where transformations happen
 
-## Schema Generation
+## Mypy Plugin
 
-Generate SQL CREATE TABLE statements from model definitions:
+icemodel ships a mypy plugin (`plugin/mypy_plugin.py`) that synthesizes typed `Fields` and `Partial` attributes for each model class. Without it, mypy accepts any attribute access on `Fields` and `Partial` is unknown.
 
-```python
-from icemodel import schema_for, schema_for_all
-from myapp.models import Artist, Album
+Add to `pyproject.toml` or `mypy.ini`:
 
-# Single model
-print(schema_for(Artist))
-
-# All models
-for sql in schema_for_all([Artist, Album]):
-    print(sql)
-    db.execute(sql)
+```toml
+[tool.mypy]
+plugins = ["plugin.mypy_plugin"]
 ```
 
-Or use the CLI:
+The plugin provides:
+- A synthetic `Fields` enum subtype with one member per model field — invalid members are caught at type-check time
+- A `Partial` TypedDict (total=False) — wrong keys and incompatible value types are caught when building patch data
 
-```bash
-python -m icemodel.schema
-```
+`Partial` is annotation-only: it exists as a type for mypy but has no runtime presence. Use it to annotate patch data dicts; passing those dicts to `patch()` works normally at runtime.
 
-## Dependencies
+See `plugin/README.md` for full details on how the plugin works and its limitations.
 
-**Runtime: none.** Uses only Python stdlib: `sqlite3`, `dataclasses`, `typing`.
+## Development
 
-The stdlib dependencies are among the most stable in Python. `sqlite3`, `dataclasses`, `inspect`, and `enum` have not had breaking API changes in years and are unlikely to. The one area worth watching is `typing`: `get_type_hints()`, `get_origin()`, `get_args()`, and `TypeVar` are all stable, but the typing module evolves across Python versions. The `types.UnionType` handling in the coercion layer (supporting the `X | Y` union syntax introduced in 3.10) is the most recent addition and is solid for 3.12+.
-
-**Mypy plugin:** requires `mypy` (dev dependency). The plugin lives in `plugin/mypy_plugin.py` and is separate from the runtime library. mypy's internal plugin API (`mypy.nodes`, `mypy.plugin`, `mypy.types`) is explicitly unstable — mypy reserves the right to change it between versions. The plugin tests catch breakage when dev dependencies are updated.
-
-## Development setup
+### Setup
 
 After cloning, activate the pre-commit hook (runs black, mypy, pylint, and pytest before each commit):
 
@@ -597,7 +599,7 @@ git config core.hooksPath .githooks
 
 This configures the hook for this repository only and does not affect any other repos on your machine.
 
-## Testing
+### Testing and static analysis
 
 Run tests:
 ```bash
@@ -616,10 +618,10 @@ uv run pylint icemodel plugin
 
 Test database: [Chinook](https://github.com/lerocha/chinook-database) (music store sample DB).
 
-## Limitations (Intentional)
+## Dependency stability
 
-- **SQLite only** — no other databases
-- **No migrations** — use a migration tool separately
-- **No N+1 prevention** — use `with_related()` for eager loading
-- **No automatic dirty tracking** — mutate via `dataclasses.replace()` + `patch()`
-- **No lazy properties** — relations are eagerly computed on access or pre-loaded with `with_related()`
+icemodel has no runtime dependencies — it relies only on the Python standard library.
+
+The stdlib dependencies are among the most stable in Python. `sqlite3`, `dataclasses`, `inspect`, and `enum` have not had breaking API changes in years and are unlikely to. The one area worth watching is `typing`: `get_type_hints()`, `get_origin()`, `get_args()`, and `TypeVar` are all stable, but the typing module evolves across Python versions. The `types.UnionType` handling in the coercion layer (supporting the `X | Y` union syntax introduced in 3.10) is the most recent addition and is solid for 3.12+.
+
+The mypy plugin is the shakiest dependency. mypy's internal plugin API (`mypy.nodes`, `mypy.plugin`, `mypy.types`) is explicitly unstable — mypy reserves the right to change it between versions. The plugin tests catch breakage when dev dependencies are updated.
