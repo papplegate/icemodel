@@ -337,6 +337,77 @@ Or use the CLI:
 python -m icemodel.schema
 ```
 
+## Raw Queries
+
+For queries that the ORM cannot express — joins, aggregations, window functions, CTEs — use `raw_query`. Define the expected result shape as a frozen `RawResultRow` subclass and pass it as `result_type`. Columns are matched to fields by name; required fields (no default) must be present in the result or a `ValueError` is raised. The result is a tuple of immutable, typed instances.
+
+```python
+from dataclasses import dataclass
+from icemodel import RawResultRow, raw_query
+
+@dataclass(frozen=True)
+class AlbumCount(RawResultRow):
+    ArtistId: int
+    Name: str | None
+    album_count: int
+
+rows = raw_query(
+    """
+    SELECT ar.ArtistId, ar.Name, COUNT(al.AlbumId) AS album_count
+    FROM Artist ar
+    LEFT JOIN Album al ON al.ArtistId = ar.ArtistId
+    GROUP BY ar.ArtistId
+    HAVING album_count > 0
+    """,
+    result_type=AlbumCount,
+)
+# rows: tuple[AlbumCount, ...] — mypy knows the shape
+for row in rows:
+    print(row.Name, row.album_count)
+```
+
+Use `__post_init__` to validate result data at construction time:
+
+```python
+@dataclass(frozen=True)
+class RevenueRow(RawResultRow):
+    CustomerId: int
+    total: float
+
+    def __post_init__(self) -> None:
+        if self.total < 0:
+            raise ValueError(f"Negative revenue for customer {self.CustomerId}")
+```
+
+icemodel provides helpers for common `__post_init__` checks:
+
+```python
+from icemodel import require_int, require_float, require_str, require_not_none
+
+@dataclass(frozen=True)
+class SummaryRow(RawResultRow):
+    label: str
+    amount: float
+
+    def __post_init__(self) -> None:
+        require_str(self.label)
+        require_float(self.amount)
+        require_not_none(self.label)
+```
+
+**Warning: fields with defaults.** If a `RawResultRow` field has a default value and the corresponding column is absent from the query result, the default is used silently — no error is raised. This can mask mistakes in the SQL. The safe practice is to select all columns that the result type declares, and reserve defaults only for fields that are genuinely optional in the result.
+
+```python
+@dataclass(frozen=True)
+class Risky(RawResultRow):
+    ArtistId: int
+    Name: str | None = None  # if SELECT omits Name, silently gets None
+
+rows = raw_query("SELECT ArtistId FROM Artist LIMIT 1", result_type=Risky)
+# rows[0].Name is None — not because the DB value is NULL,
+# but because Name was never fetched
+```
+
 ## Error Reporting
 
 All SQL execution is wrapped to provide clear error messages. When a query fails, the full context is shown — the exact SQL and parameters alongside the database error — making it straightforward to diagnose issues that would be hidden by compile-time checking alone (e.g. renaming a database column without updating code).
