@@ -525,8 +525,10 @@ Track.query().order_by(Track.Fields.NAME, Direction.DESCENDING)
 - `order_by(field, Direction.ASCENDING|Direction.DESCENDING)` — sort
 - `limit(n)` — limit results
 - `offset(n)` — skip results
-- `select(*fields)` — select specific columns
+- `select(*fields)` — override the default `SELECT *` with specific columns
 - `with_related(name, ...)` — eager load relations
+
+**Warning: `select()` and model field defaults.** By default `QueryBuilder` fetches all columns (`SELECT *`) and hydrates the full model. If you use `select()` to fetch a subset of columns, any model field that was not fetched and has a default value will silently receive that default rather than the real database value — no error is raised. This is the same hazard as in `raw_query` (documented there). The safe practice is to leave `select()` unused for standard model queries and rely on the `SELECT *` default; reserve column selection for pass-through use cases where you are not expecting a fully-hydrated model instance.
 
 **Execution (via iterator protocol or explicit methods):**
 
