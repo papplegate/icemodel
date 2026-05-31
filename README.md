@@ -135,32 +135,33 @@ Model.bind(conn)
 from icemodel._query_builder import Operator, Direction
 
 # Process rows one at a time — only one row in memory at once
-for artist in Artist.query().order_by(Artist.Fields.NAME):
+for artist in Artist.query().select().order_by(Artist.Fields.NAME):
     print(artist.Name)
 
 # Collect everything into a tuple
-artists = tuple(Artist.query())
+artists = tuple(Artist.query().select())
 
 # Comprehension — combines iteration with transformation
-names = [a.Name for a in Artist.query().where(Artist.Fields.NAME, Operator.LIKE, "The %")]
+names = [a.Name for a in Artist.query().select().where(Artist.Fields.NAME, Operator.LIKE, "The %")]
 
 # Filter, order, limit
 top_artists = tuple(
     Artist.query()
+    .select()
     .where(Artist.Fields.NAME, Operator.LIKE, "The %")
     .order_by(Artist.Fields.NAME)
     .limit(10)
 )
 
 # Find by primary key
-_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
 
 # Count
 num_artists = Artist.query().count()
 
 # Get first (with ordering)
-_results = tuple(Artist.query().order_by(Artist.Fields.NAME).limit(1))
+_results = tuple(Artist.query().select().order_by(Artist.Fields.NAME).limit(1))
 first = _results[0] if _results else None
 ```
 
@@ -169,7 +170,7 @@ first = _results[0] if _results else None
 Access related records lazily (one query per access):
 
 ```python
-_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
 albums = artist.albums  # Fetches all albums for this artist
 ```
@@ -179,7 +180,7 @@ albums = artist.albums  # Fetches all albums for this artist
 Batch-fetch related records in one query per relation:
 
 ```python
-artists = tuple(Artist.query().with_related("albums"))
+artists = tuple(Artist.query().select().with_related("albums"))
 for artist in artists:
     albums = artist.albums  # Already loaded, no extra queries
 ```
@@ -203,7 +204,7 @@ assert isinstance(artists, tuple)
 # Fetch, modify with dataclasses.replace(), then update by primary key
 from dataclasses import replace
 
-_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
 if len(_results) > 0:
     artist = _results[0]
     modified = replace(artist, Name="Changed")
@@ -301,7 +302,7 @@ User.query().insert([User(UserId=2, Email="invalid", Age=30)])
 # ValueError: Validation failed for Email='invalid'
 
 # Read also validates: catches data corruption from external writes
-_results = tuple(User.query().where(User.Fields.USERID, 1).limit(1))
+_results = tuple(User.query().select().where(User.Fields.USERID, 1).limit(1))
 user = _results[0] if _results else None  # Validates on hydration
 # If data was corrupted (e.g., via direct SQL), ValueError is raised
 ```
@@ -434,7 +435,7 @@ To modify a fetched instance, create a copy with `dataclasses.replace()`:
 ```python
 from dataclasses import replace
 
-_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
 if artist is not None:
     updated = replace(artist, Name="New Name")
@@ -469,12 +470,14 @@ class Artist(Model):
     Name: str | None = None
 
 # Type-safe queries using enum members
-_results = tuple(Artist.query().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
 artist = _results[0] if _results else None
-tuple(Artist.query().where(Artist.Fields.NAME, "AC/DC"))
-tuple(Artist.query().order_by(Artist.Fields.ARTISTID))
+tuple(Artist.query().select().where(Artist.Fields.NAME, "AC/DC"))
+tuple(Artist.query().select().order_by(Artist.Fields.ARTISTID))
 
-# Unpack all fields into select()
+# select() with no arguments fetches all model fields
+tuple(Artist.query().select())
+# Equivalent explicit form:
 tuple(Artist.query().select(*Artist.Fields))
 ```
 
@@ -499,9 +502,9 @@ bad2: Artist.Partial = {"Name": 99999}       # ✗ Wrong value type
 
 ```python
 # All caught at compile time by mypy
-tuple(Artist.query().where(Artist.Fields.INVALID, "x"))           # ✗ No such member
-tuple(Artist.query().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction
-tuple(Artist.query().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator
+tuple(Artist.query().select().where(Artist.Fields.INVALID, "x"))           # ✗ No such member
+tuple(Artist.query().select().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction
+tuple(Artist.query().select().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator
 ```
 
 ### Query Builder Reference
@@ -525,10 +528,10 @@ Track.query().order_by(Track.Fields.NAME, Direction.DESCENDING)
 - `order_by(field, Direction.ASCENDING|Direction.DESCENDING)` — sort
 - `limit(n)` — limit results
 - `offset(n)` — skip results
-- `select(*fields)` — override the default `SELECT *` with specific columns
+- `select(*fields)` — specify columns; call with no arguments to select all model fields
 - `with_related(name, ...)` — eager load relations
 
-**Warning: `select()` and model field defaults.** By default `QueryBuilder` fetches all columns (`SELECT *`) and hydrates the full model. If you use `select()` to fetch a subset of columns, any model field that was not fetched and has a default value will silently receive that default rather than the real database value — no error is raised. This is the same hazard as in `raw_query` (documented there). The safe practice is to omit `select()` entirely for standard model queries and rely on the `SELECT *` default; reserve column selection for pass-through use cases where you are not expecting a fully-hydrated model instance.
+**Warning: `select()` and model field defaults.** Calling `select()` with no arguments fetches all model fields and is the standard way to execute a SELECT query. If you pass specific columns to `select()`, any model field that was not fetched and has a default value will silently receive that default rather than the real database value — no error is raised. This is the same hazard as in `raw_query` (documented there). For standard model queries, pass no arguments to `select()` to fetch all fields safely.
 
 **Execution (via iterator protocol or explicit methods):**
 
@@ -615,7 +618,7 @@ class Artist(Model):
 # API boundary: transform to external schema
 @app.get("/artists/{id}")
 def get_artist(id: int):
-    _results = tuple(Artist.query().where(Artist.Fields.ARTISTID, id).limit(1))
+    _results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, id).limit(1))
     db_artist = _results[0] if _results else None
     if db_artist is None:
         raise NotFound()
