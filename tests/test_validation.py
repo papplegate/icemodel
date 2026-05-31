@@ -9,7 +9,6 @@ from typing import ClassVar
 import pytest
 
 from icemodel import Model, ModelMeta, add_field_types
-from icemodel._query_builder import Operator
 
 
 def is_positive(value: int) -> bool:
@@ -267,3 +266,54 @@ class TestValidation:
         # Eager loading should fail when validating the corrupted child
         with pytest.raises(ValueError, match="Validation failed for title"):
             tuple(Parent.query().with_related("children"))
+
+
+class TestTypeCoercion:
+    def test_model_int_coerced_to_float_for_float_field(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
+        # NUMERIC affinity (non-STRICT) stores whole numbers as INTEGER and returns
+        # them as int. The float-annotated field must be coerced before construction.
+        writable_db.execute(
+            "CREATE TABLE Measurement (id INTEGER PRIMARY KEY, value NUMERIC)"
+        )
+        writable_db.execute("INSERT INTO Measurement VALUES (1, 2)")
+        writable_db.commit()
+
+        # Confirm SQLite actually returned int here — that's the case we're coercing.
+        row = writable_db.execute(
+            "SELECT value FROM Measurement WHERE id = 1"
+        ).fetchone()
+        assert isinstance(row[0], int)
+
+        @add_field_types
+        @dataclass(eq=False, frozen=True)
+        class Measurement(Model):
+            _meta = ModelMeta(table="Measurement", id_column="id")
+            id: int = 0
+            value: float = 0.0
+
+        results = tuple(Measurement.query())
+        assert len(results) == 1
+        assert isinstance(results[0].value, float)
+        assert results[0].value == 2.0
+
+    def test_model_non_integer_float_unchanged(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
+        writable_db.execute(
+            "CREATE TABLE Measurement (id INTEGER PRIMARY KEY, value NUMERIC)"
+        )
+        writable_db.execute("INSERT INTO Measurement VALUES (1, 2.5)")
+        writable_db.commit()
+
+        @add_field_types
+        @dataclass(eq=False, frozen=True)
+        class Measurement(Model):
+            _meta = ModelMeta(table="Measurement", id_column="id")
+            id: int = 0
+            value: float = 0.0
+
+        results = tuple(Measurement.query())
+        assert results[0].value == 2.5
+        assert isinstance(results[0].value, float)

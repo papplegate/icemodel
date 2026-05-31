@@ -2,6 +2,8 @@
 
 A minimal, dependency-free ORM for Python inspired by [objection.js](https://vincit.github.io/objection.js/). Fluent query builder, relations with lazy and eager loading, SQLite backend.
 
+icemodel treats frozen dataclasses as the single source of truth for both models and query results. Every value that crosses the database boundary — whether fetched through the ORM or via a raw SQL query — arrives as an immutable, typed Python object whose shape is declared in code and checked by mypy. The raw query escape hatch is a first-class feature: write arbitrary SQL for joins, aggregations, and window functions, declare the expected result shape as a `RawResultRow` subclass, and get back a typed, validated, frozen dataclass. Most Python database libraries return dicts or loosely-typed row objects and leave interpretation to the caller; icemodel enforces the contract at the boundary so the rest of your code can rely on it.
+
 ## Quick Start
 
 ### Define Models

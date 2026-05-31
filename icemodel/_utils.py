@@ -45,6 +45,8 @@ def _coerce_row(model_class: type[Any], data: dict[str, Any]) -> dict[str, Any]:
                 v = datetime.datetime.fromisoformat(v)
             elif inner is datetime.date and isinstance(v, str):
                 v = datetime.date.fromisoformat(v)
+            elif inner is float and isinstance(v, int):
+                v = float(v)
         result[k] = v
     return result
 
