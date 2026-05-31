@@ -60,7 +60,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         self._model_class = model_class
         self._table = table
         self._conn = conn
-        self._selects: list[str] = ["*"]
+        self._selects: list[str] | None = None
         self._wheres: list[tuple[str, str, Any]] = []
         self._order_bys: list[tuple[str, Direction]] = []
         self._limit_val: int | None = None
@@ -72,7 +72,11 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     # ------------------------------------------------------------------ #
 
     def select(self, *columns: Enum) -> QueryBuilder[T]:
-        self._selects = [_unwrap_column(c) for c in columns]
+        if columns:
+            self._selects = [_unwrap_column(c) for c in columns]
+        else:
+            fields_enum: Any = self._model_class.Fields  # type: ignore[attr-defined]
+            self._selects = [_unwrap_column(c) for c in fields_enum]
         return self
 
     def where(
@@ -210,7 +214,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         id_col = self._model_class._meta.id_column  # pylint: disable=protected-access
         inserted_ids = [d[id_col] for d in dicts]
         id_field = _column_to_enum(self._model_class, id_col)
-        results = tuple(self.where_in(id_field, inserted_ids))
+        results = tuple(self.select().where_in(id_field, inserted_ids))
         return results
 
     def update(self, models: Iterable[T]) -> tuple[T, ...]:
@@ -254,7 +258,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
 
         # Fetch updated instances
         id_field = _column_to_enum(self._model_class, id_col)
-        results = tuple(self.where_in(id_field, updated_ids))
+        results = tuple(self.select().where_in(id_field, updated_ids))
         return results
 
     def patch(self, data: dict[str, Any]) -> int:
@@ -318,6 +322,12 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     def _build_select(
         self, force_limit: int | None = None
     ) -> tuple[str, list[Any]]:  # pylint: disable=too-many-locals
+        if self._selects is None:
+            raise RuntimeError(
+                f"Call .select() before issuing a SELECT query on "
+                f"{self._model_class.__name__}. Use .select() with no arguments "
+                f"to select all fields."
+            )
         cols = ", ".join(self._selects)
         sql = f"SELECT {cols} FROM {self._table}"
         where_sql, params = self._build_where()

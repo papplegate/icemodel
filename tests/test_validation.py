@@ -80,7 +80,7 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
         )
         assert len(_results) > 0
         original = _results[0]
@@ -96,7 +96,7 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
         )
         assert len(_results) > 0
         original = _results[0]
@@ -116,7 +116,7 @@ class TestValidation:
         )
         assert rows_affected == 1
         _results = tuple(
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
         )
         assert len(_results) > 0
         fetched = _results[0]
@@ -166,7 +166,7 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
         )
         assert len(_results) > 0
         fetched = _results[0]
@@ -186,7 +186,10 @@ class TestValidation:
         # Attempting to read should fail validation
         with pytest.raises(ValueError, match="Validation failed for email"):
             _results = tuple(
-                ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).limit(1)
+                ValidatedModel.query()
+                .select()
+                .where(ValidatedModel.Fields.ID, 1)
+                .limit(1)
             )
             assert len(_results) > 0
             result = _results[0]
@@ -207,7 +210,7 @@ class TestValidation:
 
         # all() should fail when it encounters the corrupted row
         with pytest.raises(ValueError, match="Validation failed for name"):
-            tuple(ValidatedModel.query())
+            tuple(ValidatedModel.query().select())
 
     def test_eager_loading_with_corrupted_data_raises(
         self, writable_db: sqlite3.Connection
@@ -240,19 +243,23 @@ class TestValidation:
             title: str = field(default="", metadata={"validator": is_non_empty})
 
         # Create tables
-        writable_db.execute("""
+        writable_db.execute(
+            """
             CREATE TABLE Parent (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL
             ) STRICT
-        """)
-        writable_db.execute("""
+        """
+        )
+        writable_db.execute(
+            """
             CREATE TABLE Child (
                 id INTEGER PRIMARY KEY,
                 parent_id INTEGER NOT NULL,
                 title TEXT NOT NULL
             ) STRICT
-        """)
+        """
+        )
         writable_db.commit()
 
         # Insert valid data
@@ -265,7 +272,7 @@ class TestValidation:
 
         # Eager loading should fail when validating the corrupted child
         with pytest.raises(ValueError, match="Validation failed for title"):
-            tuple(Parent.query().with_related("children"))
+            tuple(Parent.query().select().with_related("children"))
 
 
 class TestTypeCoercion:
@@ -293,7 +300,7 @@ class TestTypeCoercion:
             id: int = 0
             value: float = 0.0
 
-        results = tuple(Measurement.query())
+        results = tuple(Measurement.query().select())
         assert len(results) == 1
         assert isinstance(results[0].value, float)
         assert results[0].value == 2.0
@@ -314,6 +321,6 @@ class TestTypeCoercion:
             id: int = 0
             value: float = 0.0
 
-        results = tuple(Measurement.query())
+        results = tuple(Measurement.query().select())
         assert results[0].value == 2.5
         assert isinstance(results[0].value, float)

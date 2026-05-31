@@ -15,13 +15,13 @@ class TestCrossModelFields:
         # mypy accepts this: where() takes Enum, and Album.Fields.ALBUMID is an Enum.
         # Only fails at runtime when SQLite finds no such column on the Artist table.
         with pytest.raises(sqlite3.OperationalError):
-            tuple(Artist.query().where(Album.Fields.ALBUMID, 1))
+            tuple(Artist.query().select().where(Album.Fields.ALBUMID, 1))
 
     def test_wrong_model_fields_in_order_by(self, chinook: sqlite3.Connection) -> None:
         # mypy accepts this: order_by() takes Enum, no check that it belongs to Artist.
         # Only fails at runtime when SQLite finds no such column on the Artist table.
         with pytest.raises(sqlite3.OperationalError):
-            tuple(Artist.query().order_by(Album.Fields.TITLE).limit(3))
+            tuple(Artist.query().select().order_by(Album.Fields.TITLE).limit(3))
 
 
 class TestPatchKeyTyping:
