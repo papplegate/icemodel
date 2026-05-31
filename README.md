@@ -575,6 +575,16 @@ python -m icemodel.schema
 
 **Mypy plugin:** requires `mypy` (dev dependency). The plugin lives in `plugin/mypy_plugin.py` and is separate from the runtime library.
 
+## Development setup
+
+After cloning, activate the pre-commit hook (runs black, mypy, pylint, and pytest before each commit):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This configures the hook for this repository only and does not affect any other repos on your machine.
+
 ## Testing
 
 Run tests:

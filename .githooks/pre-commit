@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+
+echo "black..."
+uv run python -m black --check --target-version py312 icemodel tests plugin
+
+echo "mypy..."
+uv run python -m mypy
+
+echo "pylint..."
+uv run python -m pylint icemodel plugin
+
+echo "pytest..."
+uv run python -m pytest
