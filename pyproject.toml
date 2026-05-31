@@ -30,11 +30,11 @@ build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
-    "black>=24.0.0",
-    "mypy>=2.1.0",
-    "pylint>=4.0.5",
-    "pytest>=9.0.3",
-    "pytest-cov>=7.1.0",
+    "black>=24.0.0,<27",
+    "mypy>=2.1.0,<3",
+    "pylint>=4.0.5,<5",
+    "pytest>=9.0.3,<10",
+    "pytest-cov>=7.1.0,<8",
 ]
 
 [tool.setuptools]
