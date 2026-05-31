@@ -573,7 +573,9 @@ python -m icemodel.schema
 
 **Runtime: none.** Uses only Python stdlib: `sqlite3`, `dataclasses`, `typing`.
 
-**Mypy plugin:** requires `mypy` (dev dependency). The plugin lives in `plugin/mypy_plugin.py` and is separate from the runtime library.
+The stdlib dependencies are among the most stable in Python. `sqlite3`, `dataclasses`, `inspect`, and `enum` have not had breaking API changes in years and are unlikely to. The one area worth watching is `typing`: `get_type_hints()`, `get_origin()`, `get_args()`, and `TypeVar` are all stable, but the typing module evolves across Python versions. The `types.UnionType` handling in the coercion layer (supporting the `X | Y` union syntax introduced in 3.10) is the most recent addition and is solid for 3.12+.
+
+**Mypy plugin:** requires `mypy` (dev dependency). The plugin lives in `plugin/mypy_plugin.py` and is separate from the runtime library. mypy's internal plugin API (`mypy.nodes`, `mypy.plugin`, `mypy.types`) is explicitly unstable — mypy reserves the right to change it between versions. The plugin tests catch breakage when dev dependencies are updated.
 
 ## Development setup
 
