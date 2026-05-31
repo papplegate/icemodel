@@ -56,11 +56,20 @@ Model.bind(conn)
 
 ### Query
 
+`QueryBuilder` is **lazy**: building a query executes nothing. Results are fetched only when you iterate — either with a `for` loop, by passing to `tuple()`, or inside a comprehension. This means you can construct and pass around a query object without hitting the database, and you can process rows one at a time without loading the full result set into memory.
+
 ```python
 from icemodel._query_builder import Operator, Direction
 
-# Fetch all (iterate over results)
+# Process rows one at a time — only one row in memory at once
+for artist in Artist.query().order_by(Artist.Fields.NAME):
+    print(artist.Name)
+
+# Collect everything into a tuple
 artists = tuple(Artist.query())
+
+# Comprehension — combines iteration with transformation
+names = [a.Name for a in Artist.query().where(Artist.Fields.NAME, Operator.LIKE, "The %")]
 
 # Filter, order, limit
 top_artists = tuple(
