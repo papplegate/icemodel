@@ -4,6 +4,16 @@ A minimal, dependency-free ORM for Python inspired by [objection.js](https://vin
 
 icemodel treats frozen dataclasses as the single source of truth for both models and query results. Every value that crosses the database boundary — whether fetched through the ORM or via a raw SQL query — arrives as an immutable, typed Python object whose shape is declared in code and checked by mypy. The raw query escape hatch is a first-class feature: write arbitrary SQL for joins, aggregations, and window functions, declare the expected result shape as a `RawResultRow` subclass, and get back a typed, validated, frozen dataclass. Most Python database libraries return dicts or loosely-typed row objects and leave interpretation to the caller; icemodel enforces the contract at the boundary so the rest of your code can rely on it.
 
+## Installation
+
+icemodel requires Python 3.12 or later. Install it with pip:
+
+```bash
+pip install icemodel
+```
+
+No further dependencies are needed for runtime use — icemodel relies only on the Python standard library.
+
 ## Quick Start
 
 ### Define Models
