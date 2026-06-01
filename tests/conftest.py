@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from icemodel import Model
+from icemodel import connect
 
 # Import models so they register in _model_registry before any test runs.
 import tests.models  # noqa: F401
@@ -63,7 +63,7 @@ CREATE TABLE NullableModel (
 def chinook() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.executescript(CHINOOK_SQL.read_text(encoding="utf-8"))
-    Model.bind(conn)
+    connect(conn)
     return conn
 
 
@@ -71,5 +71,5 @@ def chinook() -> sqlite3.Connection:
 def writable_db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_WRITABLE_SCHEMA)
-    Model.bind(conn)
+    connect(conn)
     return conn

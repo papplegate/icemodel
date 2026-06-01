@@ -4,7 +4,8 @@ import sqlite3
 _state: dict[str, sqlite3.Connection | bool] = {}
 
 
-def set_connection(conn: sqlite3.Connection) -> None:
+def connect(conn: sqlite3.Connection) -> None:
+    """Register a SQLite connection for use by all query paths."""
     conn.row_factory = sqlite3.Row
     _state["conn"] = conn
 
@@ -14,11 +15,9 @@ def get_connection() -> sqlite3.Connection:
         conn = _state["conn"]
         if isinstance(conn, sqlite3.Connection):
             return conn
-        raise RuntimeError("No database connection. Call Model.bind(conn) first.")
+        raise RuntimeError("No database connection. Call connect(conn) first.")
     except KeyError as exc:
-        raise RuntimeError(
-            "No database connection. Call Model.bind(conn) first."
-        ) from exc
+        raise RuntimeError("No database connection. Call connect(conn) first.") from exc
 
 
 def set_transaction_context(value: bool) -> None:

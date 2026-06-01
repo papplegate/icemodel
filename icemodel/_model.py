@@ -1,12 +1,10 @@
 import dataclasses
-import sqlite3
 from contextlib import contextmanager
 from enum import Enum
 from typing import TYPE_CHECKING, Any, ClassVar, Generator, TypeVar
 
 from ._connection import (
     get_connection,
-    set_connection,
     set_transaction_context,
 )
 from ._relations import Relation
@@ -96,10 +94,6 @@ class Model(metaclass=_ModelMeta):
     # ------------------------------------------------------------------ #
     # Class-level API                                                      #
     # ------------------------------------------------------------------ #
-
-    @classmethod
-    def bind(cls, conn: sqlite3.Connection) -> None:
-        set_connection(conn)
 
     @classmethod
     def query(cls: type[T]) -> "QueryBuilder[T]":

@@ -1,3 +1,4 @@
+from ._connection import connect
 from ._migrations import migrate
 from ._model import Model, ModelMeta, add_field_types
 from ._raw import (
@@ -13,6 +14,7 @@ from ._relations import BelongsTo, HasMany, HasOne, ManyToMany
 from .schema import schema_for, schema_for_all
 
 __all__ = [
+    "connect",
     "migrate",
     "Model",
     "ModelMeta",
