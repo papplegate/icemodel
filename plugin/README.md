@@ -9,11 +9,13 @@ The icemodel mypy plugin synthesizes two type-level attributes — `Fields` and 
 A synthetic enum subtype with one uppercase member per model field. mypy uses it to catch references to non-existent fields at type-check time.
 
 ```python
+from icemodel._query_builder import Operator
+
 # Caught by mypy with the plugin:
-Artist.query().where(Artist.Fields.NAEM, "AC/DC")   # error: has no attribute "NAEM"
+Artist.query().select().where(Artist.Fields.NAEM, Operator.EQUAL, "AC/DC")   # error: has no attribute "NAEM"
 
 # Accepted:
-Artist.query().where(Artist.Fields.NAME, "AC/DC")
+Artist.query().select().where(Artist.Fields.NAME, Operator.EQUAL, "AC/DC")
 ```
 
 Without the plugin, `Artist.Fields` is typed as `Any` and all member access passes silently.
