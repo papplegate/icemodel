@@ -677,19 +677,11 @@ This configures the hook for this repository only and does not affect any other 
 
 ### Testing and static analysis
 
-Run tests:
 ```bash
-uv run pytest
-```
-
-Type check:
-```bash
-uv run mypy
-```
-
-Lint:
-```bash
-uv run pylint icemodel plugin
+uv run python -m pytest
+uv run python -m mypy
+uv run python -m pylint icemodel plugin
+uv run python -m black --check --target-version py312 icemodel tests plugin
 ```
 
 Test database: [Chinook](https://github.com/lerocha/chinook-database) (music store sample DB).
