@@ -121,10 +121,10 @@ class Album(Model):
 
 ```python
 import sqlite3
-from icemodel import Model
+from icemodel import connect
 
 conn = sqlite3.connect("music.db")
-Model.bind(conn)
+connect(conn)
 ```
 
 ### Query
