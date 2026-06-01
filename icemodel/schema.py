@@ -1,7 +1,5 @@
 """Schema generation from model definitions."""
 
-from __future__ import annotations
-
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any, cast, get_args, get_origin, get_type_hints
 
@@ -54,7 +52,7 @@ def _is_required(python_type: Any) -> bool:
     return True
 
 
-def schema_for(model_class: type[Model]) -> str:  # pylint: disable=too-many-locals
+def schema_for(model_class: "type[Model]") -> str:  # pylint: disable=too-many-locals
     """Generate CREATE TABLE statement for a model.
 
     Args:

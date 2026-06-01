@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import dataclasses
 import sqlite3
 from collections.abc import Iterable
@@ -69,7 +67,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     # Fluent API                                                           #
     # ------------------------------------------------------------------ #
 
-    def select(self, *columns: Enum) -> QueryBuilder[T]:
+    def select(self, *columns: Enum) -> "QueryBuilder[T]":
         if columns:
             self._selects = [_unwrap_column(c) for c in columns]
         else:
@@ -82,12 +80,12 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         column: Enum,
         operator: Operator,
         value: Any,
-    ) -> QueryBuilder[T]:
+    ) -> "QueryBuilder[T]":
         col = _unwrap_column(column)
         self._wheres.append((col, operator.value, value))
         return self
 
-    def where_in(self, column: Enum, values: list[Any]) -> QueryBuilder[T]:
+    def where_in(self, column: Enum, values: list[Any]) -> "QueryBuilder[T]":
         col = _unwrap_column(column)
         if not values:
             self._wheres.append(("1", "=", 0))  # always-false: WHERE 1 = 0
@@ -97,20 +95,20 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
 
     def order_by(
         self, column: Enum, direction: Direction = Direction.ASCENDING
-    ) -> QueryBuilder[T]:
+    ) -> "QueryBuilder[T]":
         col = _unwrap_column(column)
         self._order_bys.append((col, direction))
         return self
 
-    def limit(self, n: int) -> QueryBuilder[T]:
+    def limit(self, n: int) -> "QueryBuilder[T]":
         self._limit_val = n
         return self
 
-    def offset(self, n: int) -> QueryBuilder[T]:
+    def offset(self, n: int) -> "QueryBuilder[T]":
         self._offset_val = n
         return self
 
-    def with_related(self, *names: str) -> QueryBuilder[T]:
+    def with_related(self, *names: str) -> "QueryBuilder[T]":
         self._eager.extend(names)
         return self
 
@@ -131,7 +129,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     # Iterator Protocol                                                    #
     # ------------------------------------------------------------------ #
 
-    def __iter__(self) -> QueryBuilder[T]:
+    def __iter__(self) -> "QueryBuilder[T]":
         """Begin iteration over query results."""
         sql, params = self._build_select()
         self._rows = self._execute_safe(sql, params).fetchall()

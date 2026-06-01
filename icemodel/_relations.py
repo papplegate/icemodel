@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import sqlite3
 from typing import TYPE_CHECKING, Any, overload
 
@@ -14,7 +12,7 @@ if TYPE_CHECKING:
 _UNLOADED: object = object()
 
 
-def _resolve_model(ref: str | type[Model]) -> type[Model]:
+def _resolve_model(ref: "str | type[Model]") -> "type[Model]":
     from ._model import _model_registry  # pylint: disable=import-outside-toplevel
 
     if isinstance(ref, str):
@@ -28,7 +26,7 @@ def _resolve_model(ref: str | type[Model]) -> type[Model]:
 class Relation:
     name: str
 
-    def __set_name__(self, owner: type[Model], name: str) -> None:
+    def __set_name__(self, owner: "type[Model]", name: str) -> None:
         self.name = name
         # Use __dict__ (not hasattr) to avoid writing into an inherited dict
         # shared with the Model base class or sibling models.
@@ -37,15 +35,15 @@ class Relation:
         owner.__relations__[name] = self
 
     @overload
-    def __get__(self, obj: None, objtype: type[Model]) -> Relation: ...
+    def __get__(self, obj: None, objtype: "type[Model]") -> "Relation": ...
 
     @overload
-    def __get__(self, obj: Model, objtype: type[Model]) -> Any: ...
+    def __get__(self, obj: "Model", objtype: "type[Model]") -> Any: ...
 
-    def __get__(self, obj: Model | None, objtype: type[Model] | None = None) -> Any:
+    def __get__(self, obj: "Model | None", objtype: "type[Model] | None" = None) -> Any:
         raise NotImplementedError
 
-    def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
+    def load_for(self, instances: "list[Model]", conn: sqlite3.Connection) -> None:
         raise NotImplementedError
 
 
@@ -54,7 +52,7 @@ class HasMany(Relation):
 
     def __init__(
         self,
-        related: str | type[Model],
+        related: "str | type[Model]",
         *,
         foreign_key: str,
         local_key: str = "id",
@@ -63,7 +61,7 @@ class HasMany(Relation):
         self.foreign_key = foreign_key
         self.local_key = local_key
 
-    def __get__(self, obj: Model | None, objtype: type[Model] | None = None) -> Any:
+    def __get__(self, obj: "Model | None", objtype: "type[Model] | None" = None) -> Any:
         if obj is None:
             return self
         cached = obj.__dict__.get(f"_rel_{self.name}", _UNLOADED)
@@ -84,7 +82,7 @@ class HasMany(Relation):
         obj.__dict__[f"_rel_{self.name}"] = result
         return result
 
-    def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
+    def load_for(self, instances: "list[Model]", conn: sqlite3.Connection) -> None:
         related_cls = _resolve_model(self._related)
         ids = [inst.__dict__[self.local_key] for inst in instances]
         ph = ",".join("?" * len(ids))
@@ -106,7 +104,7 @@ class BelongsTo(Relation):
 
     def __init__(
         self,
-        related: str | type[Model],
+        related: "str | type[Model]",
         *,
         foreign_key: str,
         owner_key: str = "id",
@@ -115,7 +113,7 @@ class BelongsTo(Relation):
         self.foreign_key = foreign_key
         self.owner_key = owner_key
 
-    def __get__(self, obj: Model | None, objtype: type[Model] | None = None) -> Any:
+    def __get__(self, obj: "Model | None", objtype: "type[Model] | None" = None) -> Any:
         if obj is None:
             return self
         cached = obj.__dict__.get(f"_rel_{self.name}", _UNLOADED)
@@ -139,7 +137,7 @@ class BelongsTo(Relation):
         obj.__dict__[f"_rel_{self.name}"] = result
         return result
 
-    def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
+    def load_for(self, instances: "list[Model]", conn: sqlite3.Connection) -> None:
         related_cls = _resolve_model(self._related)
         fk_vals = list(
             {inst.__dict__.get(self.foreign_key) for inst in instances} - {None}
@@ -166,7 +164,7 @@ class HasOne(Relation):
 
     def __init__(
         self,
-        related: str | type[Model],
+        related: "str | type[Model]",
         *,
         foreign_key: str,
         local_key: str = "id",
@@ -175,7 +173,7 @@ class HasOne(Relation):
         self.foreign_key = foreign_key
         self.local_key = local_key
 
-    def __get__(self, obj: Model | None, objtype: type[Model] | None = None) -> Any:
+    def __get__(self, obj: "Model | None", objtype: "type[Model] | None" = None) -> Any:
         if obj is None:
             return self
         cached = obj.__dict__.get(f"_rel_{self.name}", _UNLOADED)
@@ -196,7 +194,7 @@ class HasOne(Relation):
         obj.__dict__[f"_rel_{self.name}"] = result
         return result
 
-    def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
+    def load_for(self, instances: "list[Model]", conn: sqlite3.Connection) -> None:
         related_cls = _resolve_model(self._related)
         ids = [inst.__dict__[self.local_key] for inst in instances]
         ph = ",".join("?" * len(ids))
@@ -219,7 +217,7 @@ class ManyToMany(Relation):
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
-        related: str | type[Model],
+        related: "str | type[Model]",
         *,
         join_table: str,
         local_fk: str,
@@ -236,7 +234,7 @@ class ManyToMany(Relation):
 
     def _fetch(
         self, local_ids: list[Any], conn: sqlite3.Connection
-    ) -> dict[Any, list[Model]]:
+    ) -> "dict[Any, list[Model]]":
         related_cls = _resolve_model(self._related)
         ph = ",".join("?" * len(local_ids))
         join_rows = conn.execute(
@@ -263,7 +261,7 @@ class ManyToMany(Relation):
                 grouped.setdefault(lv, []).append(by_pk[rv])
         return grouped
 
-    def __get__(self, obj: Model | None, objtype: type[Model] | None = None) -> Any:
+    def __get__(self, obj: "Model | None", objtype: "type[Model] | None" = None) -> Any:
         if obj is None:
             return self
         cached = obj.__dict__.get(f"_rel_{self.name}", _UNLOADED)
@@ -280,7 +278,7 @@ class ManyToMany(Relation):
         obj.__dict__[f"_rel_{self.name}"] = result
         return result
 
-    def load_for(self, instances: list[Model], conn: sqlite3.Connection) -> None:
+    def load_for(self, instances: "list[Model]", conn: sqlite3.Connection) -> None:
         ids = [inst.__dict__[self.local_key] for inst in instances]
         grouped = self._fetch(ids, conn)
         for inst in instances:

@@ -1,7 +1,5 @@
 """Tests for raw_query and RawResultRow."""
 
-from __future__ import annotations
-
 import dataclasses
 import re
 import sqlite3

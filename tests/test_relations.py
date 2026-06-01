@@ -1,7 +1,5 @@
 """Relation tests: lazy loading and eager loading (with_related)."""
 
-from __future__ import annotations
-
 import sqlite3
 
 from icemodel._query_builder import Operator

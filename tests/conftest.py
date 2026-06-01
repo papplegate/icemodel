@@ -7,8 +7,6 @@ under the MIT License.
 ``writable_db`` is function-scoped (fresh in-memory DB per test, for CRUD tests).
 """
 
-from __future__ import annotations
-
 import sqlite3
 from pathlib import Path
 

@@ -5,8 +5,6 @@ Model's primary-key equality is preserved rather than the field-wise equality th
 @dataclass would generate.
 """
 
-from __future__ import annotations
-
 import datetime
 from dataclasses import dataclass
 from typing import ClassVar

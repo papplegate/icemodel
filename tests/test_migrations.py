@@ -1,7 +1,5 @@
 """Tests for the migration runner."""
 
-from __future__ import annotations
-
 import sqlite3
 from collections.abc import Generator
 from pathlib import Path
