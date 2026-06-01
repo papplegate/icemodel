@@ -155,7 +155,7 @@ class TestFirst:
         _results = tuple(
             Artist.query()
             .select()
-            .where(Album.Fields.ARTISTID, Operator.EQUAL, -1)
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, -1)
             .limit(1)
         )
         result = _results[0] if _results else None
@@ -212,7 +212,7 @@ class TestToSql:
         sql, params = (
             Artist.query()
             .select()
-            .where(Album.Fields.ARTISTID, Operator.EQUAL, 1)
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, 1)
             .to_sql()
         )
         assert sql == "SELECT ArtistId, Name FROM Artist WHERE ArtistId = ?"
@@ -287,7 +287,7 @@ class TestToSql:
             Track.query()
             .select()
             .order_by(Track.Fields.ALBUMID)
-            .order_by(Artist.Fields.NAME, Direction.DESCENDING)
+            .order_by(Track.Fields.NAME, Direction.DESCENDING)
             .to_sql()
         )
         assert sql == (

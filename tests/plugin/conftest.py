@@ -42,6 +42,7 @@ def check() -> Callable[[str], tuple[str, int]]:
                     "--config-file",
                     str(_PROJECT_ROOT / "pyproject.toml"),
                     "--no-error-summary",
+                    "--no-incremental",
                     str(temp_file),
                 ]
             )

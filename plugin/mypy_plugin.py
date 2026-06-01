@@ -11,8 +11,17 @@ from mypy.nodes import (
     TypeInfo,
     Var,
 )
-from mypy.plugin import ClassDefContext, Plugin
-from mypy.types import AnyType, Instance, Type, TypeOfAny, TypeType, TypedDictType
+from mypy.plugin import ClassDefContext, MethodSigContext, Plugin
+from mypy.types import (
+    AnyType,
+    FunctionLike,
+    Instance,
+    Type,
+    TypeOfAny,
+    TypeType,
+    TypedDictType,
+    get_proper_type,
+)
 
 
 def _get_dataclass_fields(ctx: ClassDefContext) -> dict[str, Type]:
@@ -101,12 +110,109 @@ def _add_field_types_hook(ctx: ClassDefContext) -> None:
     _synthesize_partial(ctx, field_items)
 
 
+def _fields_instance_from_querybuilder(  # pylint: disable=too-many-return-statements
+    self_type: Type,
+) -> Optional[Instance]:
+    """Extract Instance(TFields, []) from a QueryBuilder[T] type.
+
+    Returns None when the model type arg is unresolved (e.g. still a TypeVar),
+    which causes the caller to fall back to the original signature.
+    """
+    proper = get_proper_type(self_type)
+    if not isinstance(proper, Instance) or not proper.args:
+        return None
+    model_type = get_proper_type(proper.args[0])
+    if not isinstance(model_type, Instance):
+        return None
+    fields_sym = model_type.type.names.get("Fields")
+    if fields_sym is None:
+        return None
+    node = fields_sym.node
+    if not isinstance(node, Var) or node.type is None:
+        return None
+    fields_var_type = get_proper_type(node.type)
+    if not isinstance(fields_var_type, TypeType):
+        return None
+    fields_item = get_proper_type(fields_var_type.item)
+    if not isinstance(fields_item, Instance):
+        return None
+    return fields_item
+
+
+def _partial_type_from_querybuilder(self_type: Type) -> Optional[TypedDictType]:
+    """Extract T.Partial TypedDictType from a QueryBuilder[T] type.
+
+    Returns None when the model type arg is unresolved, causing the caller to
+    fall back to the original dict[str, Any] signature.
+    """
+    proper = get_proper_type(self_type)
+    if not isinstance(proper, Instance) or not proper.args:
+        return None
+    model_type = get_proper_type(proper.args[0])
+    if not isinstance(model_type, Instance):
+        return None
+    partial_sym = model_type.type.names.get("Partial")
+    if partial_sym is None:
+        return None
+    node = partial_sym.node
+    if not isinstance(node, TypeAlias):
+        return None
+    target = get_proper_type(node.target)
+    if not isinstance(target, TypedDictType):
+        return None
+    return target
+
+
+def _column_sig_hook(ctx: MethodSigContext) -> FunctionLike:
+    """Narrow the column parameter from Enum to the model's own Fields type."""
+    sig = ctx.default_signature
+    fields_type = _fields_instance_from_querybuilder(ctx.type)
+    if fields_type is None:
+        return sig
+    new_arg_types = list(sig.arg_types)
+    if not new_arg_types:
+        return sig
+    new_arg_types[0] = fields_type
+    return sig.copy_modified(arg_types=new_arg_types)
+
+
+def _patch_sig_hook(ctx: MethodSigContext) -> FunctionLike:
+    """Narrow the data parameter from dict[str, Any] to T.Partial."""
+    sig = ctx.default_signature
+    partial_type = _partial_type_from_querybuilder(ctx.type)
+    if partial_type is None:
+        return sig
+    new_arg_types = list(sig.arg_types)
+    if not new_arg_types:
+        return sig
+    new_arg_types[0] = partial_type
+    return sig.copy_modified(arg_types=new_arg_types)
+
+
+_COLUMN_METHODS = frozenset(
+    {
+        "icemodel._query_builder.QueryBuilder.where",
+        "icemodel._query_builder.QueryBuilder.where_in",
+        "icemodel._query_builder.QueryBuilder.order_by",
+    }
+)
+
+
 class IcemodelPlugin(Plugin):
     def get_class_decorator_hook(
         self, fullname: str
     ) -> Optional[Callable[[ClassDefContext], None]]:
         if fullname == "icemodel._model.add_field_types":
             return _add_field_types_hook
+        return None
+
+    def get_method_signature_hook(
+        self, fullname: str
+    ) -> Optional[Callable[[MethodSigContext], FunctionLike]]:
+        if fullname in _COLUMN_METHODS:
+            return _column_sig_hook
+        if fullname == "icemodel._query_builder.QueryBuilder.patch":
+            return _patch_sig_hook
         return None
 
 
