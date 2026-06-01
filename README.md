@@ -154,7 +154,7 @@ top_artists = tuple(
 )
 
 # Find by primary key
-_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 artist = _results[0] if _results else None
 
 # Count
@@ -170,7 +170,7 @@ first = _results[0] if _results else None
 Access related records lazily (one query per access):
 
 ```python
-_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 artist = _results[0] if _results else None
 albums = artist.albums  # Fetches all albums for this artist
 ```
@@ -204,7 +204,7 @@ assert isinstance(artists, tuple)
 # Fetch, modify with dataclasses.replace(), then update by primary key
 from dataclasses import replace
 
-_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 if len(_results) > 0:
     artist = _results[0]
     modified = replace(artist, Name="Changed")
@@ -215,19 +215,19 @@ if len(_results) > 0:
 **Patch (partial fields with where clause):**
 ```python
 # Update specific fields of filtered records
-rows_affected = Album.query().where(Album.Fields.ARTISTID, 1).patch(
+rows_affected = Album.query().where(\1, Operator.EQUAL, \2).patch(
     {"Title": "New Title"}
 )
 
 # Use Model.Partial for type-checked patch data
 def rename_album(album_id: int, new_title: str) -> int:
     data: Album.Partial = {"Title": new_title}
-    return Album.query().where(Album.Fields.ALBUMID, album_id).patch(data)
+    return Album.query().where(\1, Operator.EQUAL, \2).patch(data)
 ```
 
 **Delete:**
 ```python
-Artist.query().where(Artist.Fields.ARTISTID, 1).delete()
+Artist.query().where(\1, Operator.EQUAL, \2).delete()
 ```
 
 ### Transactions
@@ -302,7 +302,7 @@ User.query().insert([User(UserId=2, Email="invalid", Age=30)])
 # ValueError: Validation failed for Email='invalid'
 
 # Read also validates: catches data corruption from external writes
-_results = tuple(User.query().select().where(User.Fields.USERID, 1).limit(1))
+_results = tuple(User.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 user = _results[0] if _results else None  # Validates on hydration
 # If data was corrupted (e.g., via direct SQL), ValueError is raised
 ```
@@ -435,11 +435,11 @@ To modify a fetched instance, create a copy with `dataclasses.replace()`:
 ```python
 from dataclasses import replace
 
-_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 artist = _results[0] if _results else None
 if artist is not None:
     updated = replace(artist, Name="New Name")
-    Artist.query().where(Artist.Fields.ARTISTID, updated.ArtistId).patch({"Name": updated.Name})
+    Artist.query().where(\1, Operator.EQUAL, \2).patch({"Name": updated.Name})
 ```
 
 ### Model Metadata
@@ -470,9 +470,9 @@ class Artist(Model):
     Name: str | None = None
 
 # Type-safe queries using enum members
-_results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1))
+_results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 artist = _results[0] if _results else None
-tuple(Artist.query().select().where(Artist.Fields.NAME, "AC/DC"))
+tuple(Artist.query().select().where(\1, Operator.EQUAL, \2))
 tuple(Artist.query().select().order_by(Artist.Fields.ARTISTID))
 
 # select() with no arguments fetches all model fields
@@ -486,7 +486,7 @@ tuple(Artist.query().select(*Artist.Fields))
 ```python
 # All fields are optional; include only the ones you want to change
 data: Artist.Partial = {"Name": "New Name"}
-Artist.query().where(Artist.Fields.ARTISTID, 1).patch(data)
+Artist.query().where(\1, Operator.EQUAL, \2).patch(data)
 
 # mypy catches invalid field names and wrong value types
 bad: Artist.Partial = {"InvalidField": 1}   # ✗ Unknown key
@@ -502,7 +502,7 @@ bad2: Artist.Partial = {"Name": 99999}       # ✗ Wrong value type
 
 ```python
 # All caught at compile time by mypy
-tuple(Artist.query().select().where(Artist.Fields.INVALID, "x"))           # ✗ No such member
+tuple(Artist.query().select().where(\1, Operator.EQUAL, \2))           # ✗ No such member
 tuple(Artist.query().select().order_by(Artist.Fields.NAME, "INVALID"))     # ✗ Invalid direction
 tuple(Artist.query().select().where(Artist.Fields.NAME, Operator.INVALID)) # ✗ Invalid operator
 ```
@@ -618,7 +618,7 @@ class Artist(Model):
 # API boundary: transform to external schema
 @app.get("/artists/{id}")
 def get_artist(id: int):
-    _results = tuple(Artist.query().select().where(Artist.Fields.ARTISTID, id).limit(1))
+    _results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
     db_artist = _results[0] if _results else None
     if db_artist is None:
         raise NotFound()

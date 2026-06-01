@@ -72,7 +72,9 @@ class TestInsert:
     def test_insert_persists(self, writable_db: sqlite3.Connection) -> None:
         book = Book(BookId=1, Title="Dune", Price=9.99)
         Book.query().insert([book])
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.Title == "Dune"
@@ -98,7 +100,9 @@ class TestUpdate:
         from dataclasses import replace
 
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, Title="Dune Messiah")
@@ -111,7 +115,9 @@ class TestUpdate:
         from dataclasses import replace
 
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, Title="Children of Dune", Price=12.50)
@@ -129,10 +135,14 @@ class TestUpdate:
                 Book(BookId=2, Title="B", Price=2.0),
             ]
         )
-        _results1 = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results1 = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results1) > 0
         book1 = _results1[0]
-        _results2 = tuple(Book.query().select().where(Book.Fields.BOOKID, 2).limit(1))
+        _results2 = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 2).limit(1)
+        )
         assert len(_results2) > 0
         book2 = _results2[0]
         modified1 = replace(book1, Title="A Modified")
@@ -148,11 +158,13 @@ class TestUpdate:
 
     def test_update_with_where_raises(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="A", Price=1.0)])
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         book = _results[0]
         with pytest.raises(ValueError, match="WHERE"):
-            Book.query().where(Book.Fields.BOOKID, 1).update([book])
+            Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).update([book])
 
 
 class TestPatch:
@@ -169,7 +181,9 @@ class TestPatch:
             .patch({"Author": "Unknown"})
         )
         assert rows_affected == 1
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 2).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 2).limit(1)
+        )
         assert len(_results) > 0
         book = _results[0]
         assert book.Author == "Unknown"
@@ -178,11 +192,13 @@ class TestPatch:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         rows_affected = (
             Book.query()
-            .where(Book.Fields.BOOKID, 1)
+            .where(Book.Fields.BOOKID, Operator.EQUAL, 1)
             .patch({"Title": "Children of Dune", "Price": 12.50})
         )
         assert rows_affected == 1
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         book = _results[0]
         assert book.Title == "Children of Dune"
@@ -206,9 +222,13 @@ class TestPatch:
 class TestDelete:
     def test_delete_removes_row(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
-        rows_affected = Book.query().where(Book.Fields.BOOKID, 1).delete()
+        rows_affected = (
+            Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).delete()
+        )
         assert rows_affected == 1
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) == 0
 
     def test_delete_without_where_raises(self, writable_db: sqlite3.Connection) -> None:
@@ -250,7 +270,9 @@ class TestTransactions:
             Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         # Should be persisted after context exits
         assert Book.query().count() == 1
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         book = _results[0]
         assert book.Title == "Dune"
@@ -289,10 +311,14 @@ class TestTransactions:
             pass
         # Original should exist, new should be rolled back
         assert Book.query().count() == 1
-        _results1 = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results1 = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results1) > 0
         result1 = _results1[0]
-        _results2 = tuple(Book.query().select().where(Book.Fields.BOOKID, 2).limit(1))
+        _results2 = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 2).limit(1)
+        )
         assert len(_results2) == 0
 
 
@@ -302,7 +328,9 @@ class TestFieldsEnum:
     ) -> None:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         # Can use enum members to reference field names in queries
-        results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert results
         assert results[0].Title == "Dune"
 
@@ -334,7 +362,9 @@ class TestRoundTrip:
         Book.query().insert([original])
 
         # Fresh fetch from database (not the returned value from insert)
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 42).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 42).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.BookId == 42
@@ -350,7 +380,9 @@ class TestRoundTrip:
         )
         Book.query().insert([original])
 
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 99).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 99).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.BookId == 99
@@ -364,7 +396,9 @@ class TestRoundTrip:
         from dataclasses import replace
 
         Book.query().insert([Book(BookId=1, Title="Original", Price=1.0)])
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         original = _results[0]
 
@@ -377,7 +411,9 @@ class TestRoundTrip:
         )
         Book.query().update([modified])
 
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.BookId == 1
@@ -392,7 +428,7 @@ class TestRoundTrip:
             [Book(BookId=1, Title="Original", Author="Original Author", Price=10.0)]
         )
 
-        Book.query().where(Book.Fields.BOOKID, 1).patch(
+        Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).patch(
             {
                 "Title": "Patched Title",
                 "Year": 2020,
@@ -400,7 +436,9 @@ class TestRoundTrip:
             }
         )
 
-        _results = tuple(Book.query().select().where(Book.Fields.BOOKID, 1).limit(1))
+        _results = tuple(
+            Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
+        )
         assert len(_results) > 0
         fetched = _results[0]
         assert fetched.BookId == 1

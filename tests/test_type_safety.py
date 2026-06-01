@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from icemodel import Model, ModelMeta, HasMany, BelongsTo, add_field_types
+from icemodel._query_builder import Operator
 from tests.models import Artist, Album
 
 
@@ -15,7 +16,9 @@ class TestCrossModelFields:
         # mypy accepts this: where() takes Enum, and Album.Fields.ALBUMID is an Enum.
         # Only fails at runtime when SQLite finds no such column on the Artist table.
         with pytest.raises(sqlite3.OperationalError):
-            tuple(Artist.query().select().where(Album.Fields.ALBUMID, 1))
+            tuple(
+                Artist.query().select().where(Album.Fields.ALBUMID, Operator.EQUAL, 1)
+            )
 
     def test_wrong_model_fields_in_order_by(self, chinook: sqlite3.Connection) -> None:
         # mypy accepts this: order_by() takes Enum, no check that it belongs to Artist.
@@ -32,14 +35,18 @@ class TestPatchKeyTyping:
         # The patch executes — SQLite will raise OperationalError at runtime
         # but mypy is silent
         with pytest.raises(sqlite3.OperationalError):
-            Artist.query().where(Artist.Fields.ARTISTID, 1).patch({"Nmae": "test"})
+            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch(
+                {"Nmae": "test"}
+            )
 
     def test_wrong_model_partial_in_patch(self, chinook: sqlite3.Connection) -> None:
         # Album.Partial applied to an Artist query — mypy cannot distinguish these
         # since patch() takes dict[str, Any]
         album_data = {"Title": "test"}
         with pytest.raises(sqlite3.OperationalError):
-            Artist.query().where(Artist.Fields.ARTISTID, 1).patch(album_data)
+            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch(
+                album_data
+            )
 
 
 class TestFieldsEnumAccess:

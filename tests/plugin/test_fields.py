@@ -48,7 +48,8 @@ _ = Book.Fields.YEAR
             MODEL_PREAMBLE
             + """
 from icemodel import Model
-q = Book.query().where(Book.Fields.TITLE, "Dune")
+from icemodel._query_builder import Operator
+q = Book.query().where(Book.Fields.TITLE, Operator.EQUAL, "Dune")
 """
         )
         assert code == 0, out

@@ -28,7 +28,9 @@ class TestAll:
 
 class TestWhere:
     def test_equality(self, chinook: sqlite3.Connection) -> None:
-        results = tuple(Artist.query().select().where(Artist.Fields.NAME, "AC/DC"))
+        results = tuple(
+            Artist.query().select().where(Artist.Fields.NAME, Operator.EQUAL, "AC/DC")
+        )
         assert len(results) == 1
         assert results[0].ArtistId == 1
 
@@ -53,7 +55,7 @@ class TestWhere:
         results = tuple(
             Album.query()
             .select()
-            .where(Album.Fields.ARTISTID, 1)
+            .where(Album.Fields.ARTISTID, Operator.EQUAL, 1)
             .where(Album.Fields.ALBUMID, Operator.GREATER_THAN, 1)
         )
         assert all(a.ArtistId == 1 and a.AlbumId > 1 for a in results)
@@ -122,7 +124,10 @@ class TestLimitOffset:
 class TestFindById:
     def test_finds_existing(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1)
+            Artist.query()
+            .select()
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         artist = _results[0]
@@ -131,7 +136,10 @@ class TestFindById:
 
     def test_returns_none_for_missing(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Artist.query().select().where(Artist.Fields.ARTISTID, 999_999).limit(1)
+            Artist.query()
+            .select()
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, 999_999)
+            .limit(1)
         )
         assert len(_results) == 0
 
@@ -147,7 +155,10 @@ class TestFirst:
         self, chinook: sqlite3.Connection
     ) -> None:
         _results = tuple(
-            Artist.query().select().where(Album.Fields.ARTISTID, -1).limit(1)
+            Artist.query()
+            .select()
+            .where(Album.Fields.ARTISTID, Operator.EQUAL, -1)
+            .limit(1)
         )
         result = _results[0] if _results else None
         assert result is None
@@ -178,7 +189,10 @@ class TestDatetimeCoercion:
         import datetime
 
         _results = tuple(
-            Employee.query().select().where(Employee.Fields.EMPLOYEEID, 1).limit(1)
+            Employee.query()
+            .select()
+            .where(Employee.Fields.EMPLOYEEID, Operator.EQUAL, 1)
+            .limit(1)
         )
         emp = _results[0] if _results else None
         assert emp is not None
@@ -197,7 +211,12 @@ class TestToSql:
         assert params == []
 
     def test_to_sql_with_where(self, chinook: sqlite3.Connection) -> None:
-        sql, params = Artist.query().select().where(Album.Fields.ARTISTID, 1).to_sql()
+        sql, params = (
+            Artist.query()
+            .select()
+            .where(Album.Fields.ARTISTID, Operator.EQUAL, 1)
+            .to_sql()
+        )
         assert sql == "SELECT ArtistId, Name FROM Artist WHERE ArtistId = ?"
         assert params == [1]
 
@@ -229,7 +248,7 @@ class TestToSql:
         sql, params = (
             Album.query()
             .select()
-            .where(Album.Fields.ARTISTID, 1)
+            .where(Album.Fields.ARTISTID, Operator.EQUAL, 1)
             .where(Album.Fields.ALBUMID, Operator.GREATER_THAN, 1)
             .to_sql()
         )

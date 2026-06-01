@@ -9,6 +9,7 @@ from typing import ClassVar
 import pytest
 
 from icemodel import Model, ModelMeta, add_field_types
+from icemodel._query_builder import Operator
 
 
 def is_positive(value: int) -> bool:
@@ -80,7 +81,10 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query()
+            .select()
+            .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         original = _results[0]
@@ -96,7 +100,10 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query()
+            .select()
+            .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         original = _results[0]
@@ -111,12 +118,15 @@ class TestValidation:
         )
         rows_affected = (
             ValidatedModel.query()
-            .where(ValidatedModel.Fields.ID, 1)
+            .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
             .patch({"name": "Alice Updated"})
         )
         assert rows_affected == 1
         _results = tuple(
-            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query()
+            .select()
+            .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         fetched = _results[0]
@@ -128,9 +138,9 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         with pytest.raises(ValueError, match="Validation failed for name"):
-            ValidatedModel.query().where(ValidatedModel.Fields.ID, 1).patch(
-                {"name": ""}
-            )
+            ValidatedModel.query().where(
+                ValidatedModel.Fields.ID, Operator.EQUAL, 1
+            ).patch({"name": ""})
 
     def test_nullable_field_skips_validation(
         self, writable_db: sqlite3.Connection
@@ -166,7 +176,10 @@ class TestValidation:
             [ValidatedModel(id=1, name="Alice", email="alice@example.com", age=30)]
         )
         _results = tuple(
-            ValidatedModel.query().select().where(ValidatedModel.Fields.ID, 1).limit(1)
+            ValidatedModel.query()
+            .select()
+            .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         fetched = _results[0]
@@ -188,7 +201,7 @@ class TestValidation:
             _results = tuple(
                 ValidatedModel.query()
                 .select()
-                .where(ValidatedModel.Fields.ID, 1)
+                .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
                 .limit(1)
             )
             assert len(_results) > 0

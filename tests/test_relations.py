@@ -11,7 +11,10 @@ from tests.models import Album, Artist, Customer, Employee, Invoice, Playlist, T
 class TestHasManyLazy:
     def test_artist_albums_lazy(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1)
+            Artist.query()
+            .select()
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         artist = _results[0]
@@ -23,7 +26,10 @@ class TestHasManyLazy:
 
     def test_lazy_result_cached(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Artist.query().select().where(Artist.Fields.ARTISTID, 1).limit(1)
+            Artist.query()
+            .select()
+            .where(Artist.Fields.ARTISTID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         artist = _results[0]
@@ -33,7 +39,10 @@ class TestHasManyLazy:
 
     def test_customer_invoices(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Customer.query().select().where(Customer.Fields.CUSTOMERID, 1).limit(1)
+            Customer.query()
+            .select()
+            .where(Customer.Fields.CUSTOMERID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         customer = _results[0]
@@ -66,7 +75,12 @@ class TestHasManyEager:
 
 class TestBelongsToLazy:
     def test_album_artist_lazy(self, chinook: sqlite3.Connection) -> None:
-        _results = tuple(Album.query().select().where(Album.Fields.ALBUMID, 1).limit(1))
+        _results = tuple(
+            Album.query()
+            .select()
+            .where(Album.Fields.ALBUMID, Operator.EQUAL, 1)
+            .limit(1)
+        )
         assert len(_results) > 0
         album = _results[0]
         artist = album.artist
@@ -74,7 +88,12 @@ class TestBelongsToLazy:
         assert artist.ArtistId == album.ArtistId
 
     def test_track_album_lazy(self, chinook: sqlite3.Connection) -> None:
-        _results = tuple(Track.query().select().where(Track.Fields.TRACKID, 1).limit(1))
+        _results = tuple(
+            Track.query()
+            .select()
+            .where(Track.Fields.TRACKID, Operator.EQUAL, 1)
+            .limit(1)
+        )
         assert len(_results) > 0
         track = _results[0]
         album = track.album
@@ -83,7 +102,10 @@ class TestBelongsToLazy:
 
     def test_invoice_customer_lazy(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Invoice.query().select().where(Invoice.Fields.INVOICEID, 1).limit(1)
+            Invoice.query()
+            .select()
+            .where(Invoice.Fields.INVOICEID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         invoice = _results[0]
@@ -104,7 +126,10 @@ class TestSelfReferentialRelation:
     def test_employee_manager_lazy(self, chinook: sqlite3.Connection) -> None:
         # EmployeeId=2 reports to EmployeeId=1
         _results = tuple(
-            Employee.query().select().where(Employee.Fields.EMPLOYEEID, 2).limit(1)
+            Employee.query()
+            .select()
+            .where(Employee.Fields.EMPLOYEEID, Operator.EQUAL, 2)
+            .limit(1)
         )
         assert len(_results) > 0
         emp = _results[0]
@@ -116,7 +141,10 @@ class TestSelfReferentialRelation:
         self, chinook: sqlite3.Connection
     ) -> None:
         _results = tuple(
-            Employee.query().select().where(Employee.Fields.EMPLOYEEID, 1).limit(1)
+            Employee.query()
+            .select()
+            .where(Employee.Fields.EMPLOYEEID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         emp = _results[0]
@@ -124,7 +152,10 @@ class TestSelfReferentialRelation:
 
     def test_direct_reports(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Employee.query().select().where(Employee.Fields.EMPLOYEEID, 1).limit(1)
+            Employee.query()
+            .select()
+            .where(Employee.Fields.EMPLOYEEID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         boss = _results[0]
@@ -136,7 +167,10 @@ class TestSelfReferentialRelation:
 class TestManyToManyLazy:
     def test_playlist_tracks_lazy(self, chinook: sqlite3.Connection) -> None:
         _results = tuple(
-            Playlist.query().select().where(Playlist.Fields.PLAYLISTID, 1).limit(1)
+            Playlist.query()
+            .select()
+            .where(Playlist.Fields.PLAYLISTID, Operator.EQUAL, 1)
+            .limit(1)
         )
         assert len(_results) > 0
         playlist = _results[0]
@@ -146,7 +180,12 @@ class TestManyToManyLazy:
         assert all(isinstance(t, Track) for t in tracks)
 
     def test_track_playlists_lazy(self, chinook: sqlite3.Connection) -> None:
-        _results = tuple(Track.query().select().where(Track.Fields.TRACKID, 1).limit(1))
+        _results = tuple(
+            Track.query()
+            .select()
+            .where(Track.Fields.TRACKID, Operator.EQUAL, 1)
+            .limit(1)
+        )
         assert len(_results) > 0
         track = _results[0]
         playlists = track.playlists

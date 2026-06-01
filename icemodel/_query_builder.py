@@ -12,8 +12,6 @@ from ._utils import from_row, validate_model, validate_fields
 if TYPE_CHECKING:
     from ._model import Model
 
-_MISSING: object = object()
-
 T = TypeVar("T", bound="Model")
 
 
@@ -82,17 +80,11 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
     def where(
         self,
         column: Enum,
-        op_or_value: Operator | Any,
-        value: Any = _MISSING,
+        operator: Operator,
+        value: Any,
     ) -> QueryBuilder[T]:
         col = _unwrap_column(column)
-        if value is _MISSING:
-            # where(column, value) → equality
-            self._wheres.append((col, "=", op_or_value))
-        else:
-            # where(column, Operator.GREATER_THAN, value) → Operator with value
-            op_str = op_or_value.value
-            self._wheres.append((col, op_str, value))
+        self._wheres.append((col, operator.value, value))
         return self
 
     def where_in(self, column: Enum, values: list[Any]) -> QueryBuilder[T]:
