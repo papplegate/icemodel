@@ -22,7 +22,7 @@ Without the plugin, `Artist.Fields` is typed as `Any` and all member access pass
 
 ### `Partial`
 
-A `TypedDict` (with `total=False`, so all keys optional) covering every field on the model. Intended for use as a type annotation on patch data passed to `.patch()`.
+A `TypedDict` (with `total=False`, so all keys optional) covering every field on the model. Intended for use as a type annotation on update data passed to `.update()`.
 
 ```python
 data: Artist.Partial = {"Name": "New Name"}          # accepted
@@ -30,7 +30,9 @@ data: Artist.Partial = {"Naem": "typo"}              # error: extra key
 data: Artist.Partial = {"Name": 99}                  # error: wrong value type
 ```
 
-`Partial` is annotation-only — it exists as a type for mypy but has no runtime presence. Passing a correctly-typed dict to `.patch()` works normally at runtime.
+`Partial` is annotation-only — it exists as a type for mypy but has no runtime presence. Passing a correctly-typed dict to `.update()` works normally at runtime.
+
+`Partial` keys are intentionally mutable. Update data is often built incrementally — adding keys conditionally based on which fields should change — so `readonly` keys would break that common pattern without providing any runtime guarantee anyway.
 
 ## How it works
 

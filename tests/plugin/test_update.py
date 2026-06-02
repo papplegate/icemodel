@@ -1,4 +1,4 @@
-"""Tests that patch() validates keys and value types against the model's Partial."""
+"""Tests that update() validates keys and value types against the model's Partial."""
 
 from collections.abc import Callable
 
@@ -11,13 +11,13 @@ from icemodel._query_builder import Operator
 """
 
 
-class TestPatchAccepts:
+class TestUpdateAccepts:
     def test_single_valid_key(self, check: Callable[[str], tuple[str, int]]) -> None:
         out, code = check(
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Title": "Dune"}})
+{_QUERY}.update({{"Title": "Dune"}})
 """
         )
         assert code == 0, out
@@ -27,7 +27,7 @@ class TestPatchAccepts:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Title": "Dune", "Price": 9.99}})
+{_QUERY}.update({{"Title": "Dune", "Price": 9.99}})
 """
         )
         assert code == 0, out
@@ -37,7 +37,7 @@ class TestPatchAccepts:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{}})
+{_QUERY}.update({{}})
 """
         )
         assert code == 0, out
@@ -49,7 +49,7 @@ class TestPatchAccepts:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Year": None}})
+{_QUERY}.update({{"Year": None}})
 """
         )
         assert code == 0, out
@@ -62,19 +62,19 @@ class TestPatchAccepts:
             + _IMPORTS
             + f"""
 data: Book.Partial = {{"Title": "Dune"}}
-{_QUERY}.patch(data)
+{_QUERY}.update(data)
 """
         )
         assert code == 0, out
 
 
-class TestPatchRejects:
+class TestUpdateRejects:
     def test_unknown_key_caught(self, check: Callable[[str], tuple[str, int]]) -> None:
         out, code = check(
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Titlee": "typo"}})
+{_QUERY}.update({{"Titlee": "typo"}})
 """
         )
         assert code != 0
@@ -87,7 +87,7 @@ class TestPatchRejects:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Title": 12345}})
+{_QUERY}.update({{"Title": 12345}})
 """
         )
         assert code != 0
@@ -100,7 +100,7 @@ class TestPatchRejects:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Price": "not a float"}})
+{_QUERY}.update({{"Price": "not a float"}})
 """
         )
         assert code != 0
@@ -113,7 +113,7 @@ class TestPatchRejects:
             MODEL_PREAMBLE
             + _IMPORTS
             + f"""
-{_QUERY}.patch({{"Year": "not an int"}})
+{_QUERY}.update({{"Year": "not an int"}})
 """
         )
         assert code != 0

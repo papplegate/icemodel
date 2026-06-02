@@ -14,7 +14,7 @@ icemodel treats frozen dataclasses as the single source of truth for both models
 | Setup complexity | Minimal | Moderate-Complex |
 | Type safety | mypy strict | Varies |
 | Immutability | Enforced (frozen dataclasses) | Mutable instances |
-| Dirty tracking | Manual (via `replace()` + `patch()`) | Automatic |
+| Dirty tracking | Manual (via `replace()` + `update()`) | Automatic |
 | Query API | Fluent, composable | Varies (SQLAlchemy is fluent) |
 | Databases | SQLite only | Multiple (Postgres, MySQL, etc.) |
 | Migrations | Separate tool | Built-in |
@@ -64,7 +64,7 @@ icemodel doesn't hide SQL — use `query.to_sql()` to inspect generated queries 
 - **SQLite only** — no other databases
 - **No migrations** — use a migration tool separately
 - **No N+1 prevention** — use `with_related()` for eager loading
-- **No automatic dirty tracking** — mutate via `dataclasses.replace()` + `patch()`
+- **No automatic dirty tracking** — mutate via `dataclasses.replace()` + `update()`
 - **No lazy properties** — relations are eagerly computed on access or pre-loaded with `with_related()`
 
 ## Installation
@@ -208,21 +208,21 @@ _results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 if len(_results) > 0:
     artist = _results[0]
     modified = replace(artist, Name="Changed")
-    result = Artist.query().update([modified])
+    result = Artist.query().save([modified])
     # Returns tuple of updated instances
 ```
 
-**Patch (partial fields with where clause):**
+**Update (partial fields with where clause):**
 ```python
 # Update specific fields of filtered records
-rows_affected = Album.query().where(\1, Operator.EQUAL, \2).patch(
+rows_affected = Album.query().where(\1, Operator.EQUAL, \2).update(
     {"Title": "New Title"}
 )
 
-# Use Model.Partial for type-checked patch data
+# Use Model.Partial for type-checked update data
 def rename_album(album_id: int, new_title: str) -> int:
     data: Album.Partial = {"Title": new_title}
-    return Album.query().where(\1, Operator.EQUAL, \2).patch(data)
+    return Album.query().where(\1, Operator.EQUAL, \2).update(data)
 ```
 
 **Delete:**
@@ -265,7 +265,7 @@ SQLite enforces `NOT NULL` constraints automatically. If you try to insert `None
 
 ## Field Validation
 
-Define field validators using dataclass field metadata for semantic constraints (format, range, etc.). Validators run **before insert/update/patch** operations, ensuring data integrity at the application layer:
+Define field validators using dataclass field metadata for semantic constraints (format, range, etc.). Validators run **before insert/save/update** operations, ensuring data integrity at the application layer:
 
 ```python
 from dataclasses import dataclass, field
@@ -288,7 +288,7 @@ class User(Model):
 ```
 
 Validation runs on:
-- **Write operations**: `insert()`, `update()`, `patch()` validate before SQL executes
+- **Write operations**: `insert()`, `save()`, `update()` validate before SQL executes
 - **Read operations**: Iterator protocol and eager loading validate when hydrating models from database rows
 
 Validation **skips** `None` values (nullable fields are treated as optional). Invalid data raises `ValueError`:
@@ -307,7 +307,7 @@ user = _results[0] if _results else None  # Validates on hydration
 # If data was corrupted (e.g., via direct SQL), ValueError is raised
 ```
 
-Validators are callable(value) -> bool returning True if valid. **Validation runs both at write time (insert/update/patch) and read time (iterator protocol, eager loading), ensuring data integrity throughout the model lifecycle.**
+Validators are callable(value) -> bool returning True if valid. **Validation runs both at write time (insert/save/update) and read time (iterator protocol, eager loading), ensuring data integrity throughout the model lifecycle.**
 
 **Division of concerns:**
 - **Type hints & schema** (`NOT NULL`, data types) — enforced by database, prevents structural violations
@@ -428,7 +428,7 @@ ValidatedModel.query().insert([corrupted])
 
 Models are **frozen dataclasses**, making instances immutable. This enforces the intended pattern:
 - Fetch from DB, read data
-- Use the query builder (`query().patch()`) for updates
+- Use the query builder (`query().save()` or `query().update()`) for writes
 - No accidental out-of-sync state
 
 To modify a fetched instance, create a copy with `dataclasses.replace()`:
@@ -439,7 +439,7 @@ _results = tuple(Artist.query().select().where(\1, Operator.EQUAL, \2).limit(1))
 artist = _results[0] if _results else None
 if artist is not None:
     updated = replace(artist, Name="New Name")
-    Artist.query().where(\1, Operator.EQUAL, \2).patch({"Name": updated.Name})
+    Artist.query().where(\1, Operator.EQUAL, \2).update({"Name": updated.Name})
 ```
 
 ### Model Metadata
@@ -481,12 +481,12 @@ tuple(Artist.query().select())
 tuple(Artist.query().select(*Artist.Fields))
 ```
 
-**`Partial` TypedDict** — typed partial row for `patch()` (plugin-synthesized, annotation-only):
+**`Partial` TypedDict** — typed partial row for `update()` (plugin-synthesized, annotation-only):
 
 ```python
 # All fields are optional; include only the ones you want to change
 data: Artist.Partial = {"Name": "New Name"}
-Artist.query().where(\1, Operator.EQUAL, \2).patch(data)
+Artist.query().where(\1, Operator.EQUAL, \2).update(data)
 
 # mypy catches invalid field names and wrong value types
 bad: Artist.Partial = {"InvalidField": 1}   # ✗ Unknown key
@@ -538,8 +538,8 @@ Track.query().order_by(Track.Fields.NAME, Direction.DESCENDING)
 - Iterate with `tuple(query)` or `for row in query` — fetch all matching rows
 - `count()` — count matching rows
 - `insert(models)` — insert multiple model instances, return tuple
-- `update(models)` — update model instances by primary key, return tuple
-- `patch(dict)` — partial update of filtered rows with field changes, return row count
+- `save(models)` — update model instances by primary key, return tuple
+- `update(dict)` — partial update of filtered rows with field changes, return row count
 - `delete()` — delete matching rows
 - `to_sql()` — inspect generated SQL (returns tuple of sql string and params)
 
@@ -657,9 +657,9 @@ plugins = ["plugin.mypy_plugin"]
 
 The plugin provides:
 - A synthetic `Fields` enum subtype with one member per model field — invalid members are caught at type-check time
-- A `Partial` TypedDict (total=False) — wrong keys and incompatible value types are caught when building patch data
+- A `Partial` TypedDict (total=False) — wrong keys and incompatible value types are caught when building update data
 
-`Partial` is annotation-only: it exists as a type for mypy but has no runtime presence. Use it to annotate patch data dicts; passing those dicts to `patch()` works normally at runtime.
+`Partial` is annotation-only: it exists as a type for mypy but has no runtime presence. Use it to annotate update data dicts; passing those dicts to `update()` works normally at runtime.
 
 See `plugin/README.md` for full details on how the plugin works and its limitations.
 

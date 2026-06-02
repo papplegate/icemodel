@@ -207,7 +207,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         results = tuple(self.select().where_in(id_field, inserted_ids))
         return results
 
-    def update(self, models: Iterable[T]) -> tuple[T, ...]:
+    def save(self, models: Iterable[T]) -> tuple[T, ...]:
         """Update rows using model instances' primary keys and field values.
 
         Args:
@@ -218,12 +218,12 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         """
         if self._wheres:
             raise ValueError(
-                "update() with model instances uses primary keys, not WHERE clauses. "
-                "Use patch(dict) with a where clause for filtered updates."
+                "save() with model instances uses primary keys, not WHERE clauses. "
+                "Use update(dict) with a where clause for filtered updates."
             )
         instances = list(models)
         if not instances:
-            raise ValueError("update() requires at least one model instance.")
+            raise ValueError("save() requires at least one model instance.")
 
         # Validate all instances before update
         for instance in instances:
@@ -235,7 +235,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         for model in instances:
             data = dataclasses.asdict(cast(Any, model))
             if not data:
-                raise ValueError("update() requires at least one column.")
+                raise ValueError("save() requires at least one column.")
             id_val = data[id_col]
             updated_ids.append(id_val)
 
@@ -251,7 +251,7 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
         results = tuple(self.select().where_in(id_field, updated_ids))
         return results
 
-    def patch(self, data: dict[str, Any]) -> int:
+    def update(self, data: dict[str, Any]) -> int:
         """Partial update of filtered rows with field changes.
 
         Args:
@@ -261,10 +261,10 @@ class QueryBuilder(Generic[T]):  # pylint: disable=too-many-instance-attributes
             Number of rows affected.
         """
         if not data:
-            raise ValueError("patch() requires at least one column.")
+            raise ValueError("update() requires at least one column.")
         if not self._wheres:
             raise ValueError(
-                "patch() requires a WHERE clause. Use .where() to specify which rows to update."
+                "update() requires a WHERE clause. Use .where() to specify which rows to update."
             )
 
         validate_fields(self._model_class, data)

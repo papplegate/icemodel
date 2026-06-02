@@ -93,8 +93,8 @@ class TestInsert:
         assert {r.Title for r in results} == {"Dune", "Foundation"}
 
 
-class TestUpdate:
-    def test_update_single_instance(self, writable_db: sqlite3.Connection) -> None:
+class TestSave:
+    def test_save_single_instance(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
 
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
@@ -104,12 +104,12 @@ class TestUpdate:
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, Title="Dune Messiah")
-        results = Book.query().update([modified])
+        results = Book.query().save([modified])
         assert isinstance(results, tuple)
         assert len(results) == 1
         assert results[0].Title == "Dune Messiah"
 
-    def test_update_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
+    def test_save_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
 
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
@@ -119,12 +119,12 @@ class TestUpdate:
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, Title="Children of Dune", Price=12.50)
-        results = Book.query().update([modified])
+        results = Book.query().save([modified])
         assert len(results) == 1
         assert results[0].Title == "Children of Dune"
         assert results[0].Price == pytest.approx(12.50)
 
-    def test_update_multiple_instances(self, writable_db: sqlite3.Connection) -> None:
+    def test_save_multiple_instances(self, writable_db: sqlite3.Connection) -> None:
         from dataclasses import replace
 
         Book.query().insert(
@@ -145,16 +145,16 @@ class TestUpdate:
         book2 = _results2[0]
         modified1 = replace(book1, Title="A Modified")
         modified2 = replace(book2, Title="B Modified")
-        results = Book.query().update([modified1, modified2])
+        results = Book.query().save([modified1, modified2])
         assert isinstance(results, tuple)
         assert len(results) == 2
         assert {r.Title for r in results} == {"A Modified", "B Modified"}
 
-    def test_update_empty_raises(self, writable_db: sqlite3.Connection) -> None:
-        with pytest.raises(ValueError, match="update()"):
-            Book.query().update([])
+    def test_save_empty_raises(self, writable_db: sqlite3.Connection) -> None:
+        with pytest.raises(ValueError, match="save()"):
+            Book.query().save([])
 
-    def test_update_with_where_raises(self, writable_db: sqlite3.Connection) -> None:
+    def test_save_with_where_raises(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="A", Price=1.0)])
         _results = tuple(
             Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
@@ -162,11 +162,13 @@ class TestUpdate:
         assert len(_results) > 0
         book = _results[0]
         with pytest.raises(ValueError, match="WHERE"):
-            Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).update([book])
+            Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).save([book])
 
 
-class TestPatch:
-    def test_patch_updates_filtered_rows(self, writable_db: sqlite3.Connection) -> None:
+class TestUpdate:
+    def test_update_updates_filtered_rows(
+        self, writable_db: sqlite3.Connection
+    ) -> None:
         Book.query().insert(
             [
                 Book(BookId=1, Title="A", Year=2000, Price=1.0),
@@ -176,7 +178,7 @@ class TestPatch:
         rows_affected = (
             Book.query()
             .where(Book.Fields.YEAR, Operator.GREATER_THAN, 2005)
-            .patch({"Author": "Unknown"})
+            .update({"Author": "Unknown"})
         )
         assert rows_affected == 1
         _results = tuple(
@@ -186,12 +188,12 @@ class TestPatch:
         book = _results[0]
         assert book.Author == "Unknown"
 
-    def test_patch_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
+    def test_update_multiple_fields(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert([Book(BookId=1, Title="Dune", Price=9.99)])
         rows_affected = (
             Book.query()
             .where(Book.Fields.BOOKID, Operator.EQUAL, 1)
-            .patch({"Title": "Children of Dune", "Price": 12.50})
+            .update({"Title": "Children of Dune", "Price": 12.50})
         )
         assert rows_affected == 1
         _results = tuple(
@@ -202,7 +204,7 @@ class TestPatch:
         assert book.Title == "Children of Dune"
         assert book.Price == pytest.approx(12.50)
 
-    def test_patch_without_where_raises(self, writable_db: sqlite3.Connection) -> None:
+    def test_update_without_where_raises(self, writable_db: sqlite3.Connection) -> None:
         Book.query().insert(
             [
                 Book(BookId=1, Title="A", Price=1.0),
@@ -210,11 +212,11 @@ class TestPatch:
             ]
         )
         with pytest.raises(ValueError, match="WHERE clause"):
-            Book.query().patch({"Author": "Unknown"})
+            Book.query().update({"Author": "Unknown"})
 
-    def test_patch_empty_raises(self, writable_db: sqlite3.Connection) -> None:
-        with pytest.raises(ValueError, match="patch()"):
-            Book.query().patch({})
+    def test_update_empty_raises(self, writable_db: sqlite3.Connection) -> None:
+        with pytest.raises(ValueError, match="update()"):
+            Book.query().update({})
 
 
 class TestDelete:
@@ -407,7 +409,7 @@ class TestRoundTrip:
             Year=2025,
             Price=29.99,
         )
-        Book.query().update([modified])
+        Book.query().save([modified])
 
         _results = tuple(
             Book.query().select().where(Book.Fields.BOOKID, Operator.EQUAL, 1).limit(1)
@@ -426,7 +428,7 @@ class TestRoundTrip:
             [Book(BookId=1, Title="Original", Author="Original Author", Price=10.0)]
         )
 
-        Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).patch(
+        Book.query().where(Book.Fields.BOOKID, Operator.EQUAL, 1).update(
             {
                 "Title": "Patched Title",
                 "Year": 2020,

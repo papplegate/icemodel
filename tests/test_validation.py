@@ -87,7 +87,7 @@ class TestValidation:
         assert len(_results) > 0
         original = _results[0]
         modified = replace(original, name="Alice Updated")
-        results = ValidatedModel.query().update([modified])
+        results = ValidatedModel.query().save([modified])
         assert results[0].name == "Alice Updated"
 
     def test_update_invalid_data_raises(self, writable_db: sqlite3.Connection) -> None:
@@ -107,7 +107,7 @@ class TestValidation:
         original = _results[0]
         invalid = replace(original, name="")
         with pytest.raises(ValueError, match="Validation failed for name"):
-            ValidatedModel.query().update([invalid])
+            ValidatedModel.query().save([invalid])
 
     def test_patch_valid_data(self, writable_db: sqlite3.Connection) -> None:
         """Valid patch data should succeed."""
@@ -117,7 +117,7 @@ class TestValidation:
         rows_affected = (
             ValidatedModel.query()
             .where(ValidatedModel.Fields.ID, Operator.EQUAL, 1)
-            .patch({"name": "Alice Updated"})
+            .update({"name": "Alice Updated"})
         )
         assert rows_affected == 1
         _results = tuple(
@@ -138,7 +138,7 @@ class TestValidation:
         with pytest.raises(ValueError, match="Validation failed for name"):
             ValidatedModel.query().where(
                 ValidatedModel.Fields.ID, Operator.EQUAL, 1
-            ).patch({"name": ""})
+            ).update({"name": ""})
 
     def test_nullable_field_skips_validation(
         self, writable_db: sqlite3.Connection

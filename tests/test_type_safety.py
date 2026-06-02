@@ -36,23 +36,23 @@ class TestCrossModelFields:
             )
 
 
-class TestPatchKeyTyping:
-    def test_typo_in_patch_key_silently_does_nothing(
+class TestUpdateKeyTyping:
+    def test_typo_in_update_key_silently_does_nothing(
         self, chinook: sqlite3.Connection
     ) -> None:
-        # mypy now catches the key typo via the TypedDict-narrowed patch() signature.
+        # mypy now catches the key typo via the TypedDict-narrowed update() signature.
         # SQLite still raises OperationalError at runtime.
         with pytest.raises(sqlite3.OperationalError):
-            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch(
+            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).update(
                 {"Nmae": "test"}  # type: ignore[typeddict-unknown-key]
             )
 
-    def test_wrong_model_partial_in_patch(self, chinook: sqlite3.Connection) -> None:
+    def test_wrong_model_partial_in_update(self, chinook: sqlite3.Connection) -> None:
         # mypy now catches this: dict[str, str] is not compatible with Artist.Partial.
         # SQLite still raises OperationalError at runtime when the column is absent.
         album_data = {"Title": "test"}
         with pytest.raises(sqlite3.OperationalError):
-            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch(
+            Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).update(
                 album_data  # type: ignore[arg-type]
             )
 

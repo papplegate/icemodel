@@ -211,7 +211,7 @@ class IcemodelPlugin(Plugin):
     ) -> Optional[Callable[[MethodSigContext], FunctionLike]]:
         if fullname in _COLUMN_METHODS:
             return _column_sig_hook
-        if fullname == "icemodel._query_builder.QueryBuilder.patch":
+        if fullname == "icemodel._query_builder.QueryBuilder.update":
             return _patch_sig_hook
         return None
 

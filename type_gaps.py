@@ -37,11 +37,11 @@ data: Artist.Partial = {"Name": "x"}  # ok
 Artist.query().where(Album.Fields.ALBUMID, Operator.EQUAL, 1)  # wrong model's field, runtime error
 Artist.query().order_by(Album.Fields.TITLE)  # wrong model's field, runtime error
 
-# --- Gap 3: patch() accepts any string keys and any value types ---
+# --- Gap 3: update() accepts any string keys and any value types ---
 # dict[str, Any] means mypy cannot catch key typos or wrong value types.
 # The wrong value type case is particularly subtle — SQLite won't reject it either.
 
-Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch({"Nmae": "typo"})  # key typo
-Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).patch(
+Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).update({"Nmae": "typo"})  # key typo
+Artist.query().where(Artist.Fields.ARTISTID, Operator.EQUAL, 1).update(
     {"Name": 99999}
 )  # wrong type, silently stored
